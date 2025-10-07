@@ -1,0 +1,81 @@
+---
+title: Order Book (L2 Snapshot)
+description: GET /v1/orderbook/{market_uid} returns aggregated price levels per outcome with a sequence for streaming sync.
+---
+
+# Order Book (L2 Snapshot)
+
+```
+GET /v1/orderbook/{market_uid}
+```
+
+Fetch L2 (price aggregated) depth across outcomes. Use sequence to align with streaming deltas.
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `market_uid` | string | Canonical market identifier |
+
+## Response Schema
+
+```json
+{
+  "market_uid": "mkt_evt_nba_2025_10_19_LAL_GSW_yesno",
+  "sequence": 340102,
+  "asof": "2025-10-06T19:21:02Z",
+  "book": {
+    "YES": {
+      "bids": [
+        { "px": "0.532", "qty": "1300" },
+        { "px": "0.531", "qty": "900" }
+      ],
+      "asks": [
+        { "px": "0.538", "qty": "1000" },
+        { "px": "0.539", "qty": "650" }
+      ]
+    },
+    "NO": {
+      "bids": [
+        { "px": "0.462", "qty": "800" }
+      ],
+      "asks": [
+        { "px": "0.468", "qty": "750" }
+      ]
+    }
+  }
+}
+```
+
+## Example Request
+
+Get order book depth for an NBA opener winner market:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/orderbook/mkt_evt_nba_2025_10_19_LAL_GSW_yesno"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `market_uid` | Market identifier |
+| `sequence` | Sequence number for stream synchronization |
+| `asof` | Timestamp of this snapshot |
+| `book` | Order book per outcome |
+| `book[outcome].bids` | Array of bid price levels (highest first) |
+| `book[outcome].asks` | Array of ask price levels (lowest first) |
+| `px` | Price level as string |
+| `qty` | Aggregated quantity at this level as string |
+
+## Notes
+
+- **L2 aggregation**: Quantities (`qty`) are aggregated per price level. Individual orders are not shown.
+- **Sequence**: Use this to fast-forward WebSocket streams or detect gaps when consuming deltas.
+- **Ordering**: Bids are ordered highest to lowest; asks are ordered lowest to highest.
+
+## Related
+
+- [Stream Order Book](/pages/live-data/stream-orderbook) — Real-time L2 updates
+- [Top-of-Book Quotes](/pages/live-data/quotes) — Get best bid/ask only

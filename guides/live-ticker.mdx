@@ -1,0 +1,41 @@
+---
+title: "Build a live ticker"
+description: "Combine /quotes REST endpoint with WebSocket quote stream for real-time updates"
+---
+
+# Build a live ticker
+
+## Overview
+
+Create a real-time price ticker using REST snapshots and WebSocket streams.
+
+## Architecture
+
+1. **Initial state**: Fetch current quotes via REST
+2. **Live updates**: Subscribe to WebSocket quote stream
+3. **Display**: Update UI with real-time price changes
+
+## Implementation
+
+### Step 1: Fetch initial quotes
+
+Use the REST API to get starting state.
+
+Code example will be documented here.
+
+### Step 2: Connect to WebSocket
+
+Subscribe to the quote stream for your markets.
+
+Code example will be documented here.
+
+### Step 3: Handle updates
+
+Process incoming quote deltas and update the display.
+
+Code example will be documented here.
+
+## Related
+
+- [GET /v1/quotes](/reference/quotes)
+- [WS /v1/stream/quotes](/ws/quotes)

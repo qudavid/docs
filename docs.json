@@ -1,68 +1,114 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Predexa Unified Prediction Markets API",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#8A5CF6",
+    "light": "#8A5CF6",
+    "dark": "#3EE6E6"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get started",
             "pages": [
-              "index",
+              "overview",
               "quickstart",
-              "development"
+              "auth",
+              "conventions"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/canonical-ids",
+              "concepts/entities",
+              "concepts/market-data",
+              "concepts/historical"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/find-price-nfl",
+              "guides/resolve-slug",
+              "guides/live-ticker",
+              "guides/candlestick-chart",
+              "guides/portfolio-dashboard"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Discovery API",
             "pages": [
-              "api-reference/introduction"
+              "pages/discovery/overview",
+              "pages/discovery/events",
+              "pages/discovery/markets",
+              "pages/discovery/market-detail",
+              "pages/discovery/matching",
+              "pages/discovery/resolve"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Live Data API",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "pages/live-data/overview",
+              "pages/live-data/quotes",
+              "pages/live-data/trades",
+              "pages/live-data/orderbook"
+            ]
+          },
+          {
+            "group": "Historical Time Series",
+            "pages": [
+              "pages/time-series/overview",
+              "pages/time-series/candles",
+              "pages/time-series/price-series"
+            ]
+          },
+          {
+            "group": "Portfolio & Linking",
+            "pages": [
+              "pages/portfolio/overview",
+              "pages/portfolio/balances",
+              "pages/portfolio/positions",
+              "pages/portfolio/pnl",
+              "pages/portfolio/activities",
+              "pages/portfolio/link-accounts"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "WebSockets",
+        "groups": [
+          {
+            "group": "WebSocket Streams",
+            "pages": [
+              "pages/live-data/stream-quotes",
+              "pages/live-data/stream-orderbook",
+              "pages/portfolio/stream"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Support",
+        "groups": [
+          {
+            "group": "Support",
+            "pages": [
+              "support/errors",
+              "support/changelog",
+              "support/contact"
             ]
           }
         ]
@@ -71,14 +117,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
+          "anchor": "API Reference",
+          "href": "https://docs.predexa.com",
           "icon": "book-open-cover"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "Support",
+          "href": "https://predexa.com/support",
+          "icon": "question"
         }
       ]
     }

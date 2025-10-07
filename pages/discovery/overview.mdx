@@ -1,0 +1,98 @@
+---
+title: Predexa Discovery API
+description: Find events and normalized markets across venues, then resolve or match native IDs to canonical IDs.
+---
+
+# Predexa Discovery API
+
+Use Predexa Discovery to find events and normalized markets across venues, then resolve or match venue-native IDs to canonical IDs.
+
+## Base URLs
+
+- **REST**: `https://api.predexa.com/v1`
+- **WebSocket**: `wss://stream.predexa.com/v1`
+
+## Conventions
+
+### Time Format
+ISO-8601 UTC timestamps (e.g., `2025-10-06T19:21:02Z`)
+
+### Numbers
+All numeric fields are strings for fixed precision (e.g., `"0.0010"`, `"1.00"`)
+
+### Pagination
+Cursor-based pagination model:
+
+**Request:**
+```
+?cursor=<opaque_string>&limit=<integer>
+```
+
+**Response:**
+```json
+{
+  "next_cursor": "eyJpZCI6..."
+}
+```
+
+No `prev_cursor` in MVP.
+
+### IDs
+
+- **Canonical IDs**: `event_uid`, `market_uid`
+- **Venue IDs**: `venue_ids{}` always present for hopping to native IDs
+
+### Authentication
+
+All requests require an authorization header:
+
+```
+Authorization: Bearer <token>
+```
+
+## Status Enums
+
+### event_status
+- `scheduled` — Event is scheduled but hasn't started
+- `live` — Event is currently in progress
+- `resolved` — Event has concluded and results are final
+- `cancelled` — Event was cancelled
+
+### trading_status
+- `open` — Market is open for trading
+- `halted` — Trading is temporarily suspended
+- `closed` — Market is closed (no more trading)
+
+## Error Handling
+
+Standard HTTP status codes are returned:
+
+- `400` — Bad Request
+- `401` — Unauthorized
+- `403` — Forbidden
+- `404` — Not Found
+- `422` — Unprocessable Entity
+- `429` — Too Many Requests
+- `5xx` — Server Errors
+
+Problem+JSON format may be used for detailed error responses in future versions.
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="List Events" icon="calendar" href="/pages/discovery/events">
+    GET /v1/events
+  </Card>
+  <Card title="List Markets" icon="chart-line" href="/pages/discovery/markets">
+    GET /v1/markets
+  </Card>
+  <Card title="Market Detail" icon="magnifying-glass" href="/pages/discovery/market-detail">
+    GET /v1/markets/{market_uid}
+  </Card>
+  <Card title="Matching Markets" icon="link" href="/pages/discovery/matching">
+    GET /v1/matching/markets
+  </Card>
+  <Card title="Resolve Selectors" icon="arrows-rotate" href="/pages/discovery/resolve">
+    POST /v1/resolve
+  </Card>
+</CardGroup>

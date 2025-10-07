@@ -1,0 +1,96 @@
+---
+title: Resolve Selectors
+description: POST /v1/resolve bulk-resolves mixed selectors into canonical market and event IDs.
+---
+
+# Resolve Selectors
+
+```
+POST /v1/resolve
+```
+
+Bulk resolve any mix of selectors (Polymarket slugs, Kalshi tickers, canonical IDs) to canonical `market_uid` and `event_uid`.
+
+## Request Body
+
+```json
+{
+  "selectors": [
+    { "venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3" },
+    { "venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
+    { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno" }
+  ]
+}
+```
+
+### Selector Types
+
+Each selector can be one of:
+
+**Polymarket selector:**
+```json
+{ "venue": "POLYMARKET", "slug": "..." }
+```
+
+**Kalshi selector:**
+```json
+{ "venue": "KALSHI", "event_ticker": "..." }
+```
+
+**Canonical ID selector:**
+```json
+{ "market_uid": "..." }
+```
+
+## Response Schema
+
+```json
+{
+  "results": [
+    {
+      "input": { "venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3" },
+      "market_uid": "mkt_evt_cpi_2025_10_14_YoY_above_3",
+      "event_uid": "evt_macro_2025_10_14_US_CPI"
+    },
+    {
+      "input": { "venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    },
+    {
+      "input": { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno" },
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    }
+  ]
+}
+```
+
+## Example Request
+
+Bulk resolve a mixed list of selectors:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "selectors": [
+      {"venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3"},
+      {"venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS"},
+      {"market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno"}
+    ]
+  }' \
+  https://api.predexa.com/v1/resolve
+```
+
+## Notes
+
+- **Output order**: Results are returned in the same order as the input selectors.
+- **Unresolvable inputs**: In MVP, unresolvable selectors may return `null` IDs with an optional error explanation. Future versions will provide detailed error handling.
+- **Idempotent**: Passing a canonical `market_uid` returns the same `market_uid` plus its associated `event_uid`.
+- **Bulk efficiency**: Use this endpoint to resolve multiple selectors in a single request rather than making individual calls.
+
+## Related
+
+- [Matching Markets](/pages/discovery/matching) — Alternative approach with confidence scores
+- [Market Detail](/pages/discovery/market-detail) — Get full details after resolving

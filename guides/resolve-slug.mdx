@@ -1,0 +1,38 @@
+---
+title: "Map Polymarket slug to market_uid"
+description: "Use /matching/markets and /resolve to convert venue identifiers to canonical IDs"
+---
+
+# Map Polymarket slug to market_uid
+
+## Overview
+
+Convert Polymarket slugs (or Kalshi tickers) to canonical `market_uid` values.
+
+## Using /v1/resolve
+
+Direct mapping from venue-specific identifiers to canonical IDs.
+
+```bash
+curl -X POST https://api.dome.plus/v1/resolve \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "venue": "polymarket",
+    "slug": "will-trump-win-2024"
+  }'
+```
+
+Response example will be documented here.
+
+## Using /v1/matching/markets
+
+Discover cross-venue market matches.
+
+Example usage will be documented here.
+
+## Related
+
+- [POST /v1/resolve](/reference/resolve)
+- [GET /v1/matching/markets](/reference/matching)
+- [Canonical IDs concept](/concepts/canonical-ids)

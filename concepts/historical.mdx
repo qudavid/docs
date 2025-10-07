@@ -1,0 +1,38 @@
+---
+title: "Historical Data"
+description: "Candles vs price-series (tick data), bar alignment"
+---
+
+# Historical Data
+
+## Overview
+
+Two approaches to accessing historical market data.
+
+## Candles (OHLCV)
+
+Aggregated price data at regular intervals.
+
+- **Intervals**: 1m, 5m, 15m, 1h, 4h, 1d
+- **Data**: Open, High, Low, Close, Volume
+- **Additional**: VWAP, Open Interest (optional)
+- **Bar alignment**: How candles align to time boundaries
+
+## Price Series (Tick Data)
+
+Raw tick-level price data for granular analysis.
+
+- Outcome-level (per `token_id` for Polymarket)
+- Every price change
+- Ideal for custom aggregations and analysis
+
+## When to Use Each
+
+- **Candles**: Charts, technical analysis, OHLC displays
+- **Tick data**: Custom indicators, microstructure analysis, research
+
+## Related
+
+- [GET /v1/candles](/reference/candles)
+- [GET /v1/price-series](/reference/price-series)
+- [Guide: Draw a candlestick chart](/guides/candlestick-chart)

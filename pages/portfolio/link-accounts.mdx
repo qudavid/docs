@@ -1,0 +1,141 @@
+---
+title: Link Accounts
+description: Link and verify native venue accounts; list currently linked accounts.
+---
+
+# Link Accounts
+
+Link and verify native venue accounts to enable portfolio tracking across Polymarket and Kalshi.
+
+## Link/Verify Account
+
+```
+POST /v1/link/wallets
+```
+
+Verify and persist the mapping between your Predexa identity and venue accounts.
+
+### Request Examples
+
+**Polymarket (EVM wallet):**
+```json
+{
+  "venue": "POLYMARKET",
+  "address": "0x7c3d...",
+  "signature": "0x..."
+}
+```
+
+**Kalshi:**
+```json
+{
+  "venue": "KALSHI",
+  "account_id": "A12345",
+  "api_key_hint": "pk_live_***"
+}
+```
+
+### Response Schema
+
+```json
+{
+  "linked": true,
+  "wallets": [
+    {
+      "venue": "POLYMARKET",
+      "address": "0x7c3d...",
+      "verified": true
+    },
+    {
+      "venue": "KALSHI",
+      "account_id": "A12345",
+      "verified": true
+    }
+  ]
+}
+```
+
+### Example Request
+
+Link Polymarket wallet:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"venue":"POLYMARKET","address":"0x7c3d...","signature":"0x..."}' \
+  "https://api.predexa.com/v1/link/wallets"
+```
+
+## List Linked Accounts
+
+```
+GET /v1/link/wallets
+```
+
+Fetch all linked accounts and their verification status.
+
+### Response Schema
+
+```json
+{
+  "wallets": [
+    {
+      "venue": "POLYMARKET",
+      "address": "0x7c3d...",
+      "verified": true
+    },
+    {
+      "venue": "KALSHI",
+      "account_id": "A12345",
+      "verified": true
+    }
+  ],
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+### Example Request
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/link/wallets"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `linked` | Whether the linking operation succeeded (POST only) |
+| `wallets` | Array of linked wallet/account objects |
+| `wallets[].venue` | Venue identifier (e.g., `POLYMARKET`, `KALSHI`) |
+| `wallets[].address` | Wallet address (for Polymarket) |
+| `wallets[].account_id` | Account ID (for Kalshi) |
+| `wallets[].verified` | Verification status |
+| `asof` | Timestamp of this snapshot (GET only) |
+
+## Verification Methods
+
+### Polymarket
+Requires EVM signature proving ownership of the wallet address.
+
+1. Sign a message with your wallet
+2. Include the `signature` in the request
+3. Predexa verifies the signature matches the address
+
+### Kalshi
+Requires API key hint for account verification.
+
+1. Provide your Kalshi `account_id`
+2. Include `api_key_hint` (last few characters of your API key)
+3. Predexa verifies the account mapping
+
+## Notes
+
+- **Security**: Signatures and API key hints are used for verification only and are not stored.
+- **Multiple venues**: You can link accounts on both Polymarket and Kalshi.
+- **Required for portfolio**: Link at least one account to access portfolio endpoints.
+
+## Related
+
+- [Balances](/pages/portfolio/balances) — View balances after linking
+- [Positions](/pages/portfolio/positions) — View positions after linking

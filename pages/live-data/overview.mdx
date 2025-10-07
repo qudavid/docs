@@ -1,0 +1,58 @@
+---
+title: Predexa Live Data API
+description: Real-time and recent prices across venues—top-of-book quotes, prints, and order book depth with snapshot/delta streaming.
+---
+
+# Predexa Live Data API
+
+Use Predexa Live Data to fetch top-of-book quotes, recent trades, and aggregated L2 order book depth; subscribe for real-time deltas over WebSocket.
+
+## Base URLs
+
+- **REST**: `https://api.predexa.com/v1`
+- **WebSocket**: `wss://stream.predexa.com/v1`
+
+## Conventions
+
+For complete conventions (time format, numeric precision, pagination, IDs, authentication, error handling), see the [Discovery API Overview](/pages/discovery/overview).
+
+### Streaming Model
+
+WebSocket streams follow a **snapshot then deltas** pattern:
+
+1. **Initial snapshot** — Full state when you first subscribe
+2. **Delta messages** — Incremental updates with monotonic `sequence` integers
+3. **Gap detection** — If you detect a sequence gap, resubscribe or request a fresh snapshot
+
+## What's Included
+
+### Quotes (REST/WS)
+- **GET /v1/quotes/{market_uid}** — Top-of-book snapshot with 24h stats
+- **WS /v1/stream/quotes** — Real-time quote updates
+
+### Trades (REST)
+- **GET /v1/trades/{market_uid}** — Recent trade history with pagination
+
+### Order Book L2 (REST/WS)
+- **GET /v1/orderbook/{market_uid}** — Aggregated order book snapshot
+- **WS /v1/stream/orderbook** — Real-time L2 depth updates
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Top-of-Book Quotes" icon="gauge-high" href="/pages/live-data/quotes">
+    GET /v1/quotes/{market_uid}
+  </Card>
+  <Card title="Stream Quotes" icon="tower-broadcast" href="/pages/live-data/stream-quotes">
+    WS /v1/stream/quotes
+  </Card>
+  <Card title="Recent Trades" icon="clock-rotate-left" href="/pages/live-data/trades">
+    GET /v1/trades/{market_uid}
+  </Card>
+  <Card title="Order Book Snapshot" icon="layer-group" href="/pages/live-data/orderbook">
+    GET /v1/orderbook/{market_uid}
+  </Card>
+  <Card title="Stream Order Book" icon="arrows-rotate" href="/pages/live-data/stream-orderbook">
+    WS /v1/stream/orderbook
+  </Card>
+</CardGroup>

@@ -1,0 +1,46 @@
+---
+title: "Prices, Trades & Order Book"
+description: "Understand quotes vs trades vs L2, snapshots vs deltas"
+---
+
+# Prices, Trades & Order Book
+
+## Overview
+
+Different types of market data available through the Predexa API.
+
+## Quotes
+
+Top-of-book snapshots showing best bid/ask/last per outcome.
+
+- Best bid/ask prices
+- Last trade price
+- Spread
+- 24h volume
+- VWAP
+- Open Interest (OI)
+
+## Trades
+
+Time-ordered list of recent executions.
+
+- Trade price
+- Trade size
+- Timestamp
+- Native trade IDs
+
+## Order Book (L2)
+
+Aggregated level-2 market depth showing price levels and liquidity.
+
+- **Snapshots** — Full order book at a point in time
+- **Deltas** — Incremental updates
+- **Sequence numbers** — For delta synchronization
+
+## Related
+
+- [GET /v1/quotes](/reference/quotes)
+- [GET /v1/trades](/reference/trades)
+- [GET /v1/orderbook](/reference/orderbook)
+- [WS /v1/stream/quotes](/ws/quotes)
+- [WS /v1/stream/orderbook](/ws/orderbook)

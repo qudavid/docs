@@ -1,0 +1,67 @@
+---
+title: Matching Markets
+description: GET /v1/matching/markets maps venue-native selectors or event_uid to canonical markets.
+---
+
+# Matching Markets
+
+```
+GET /v1/matching/markets
+```
+
+Convert venue-native selectors (Polymarket slug, Kalshi ticker) or `event_uid` to canonical `market_uid` with confidence scores.
+
+## Query Parameters
+
+Provide at least one of the following:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `polymarket_slug[]` | string | Polymarket slug (repeatable) |
+| `kalshi_ticker[]` | string | Kalshi ticker (repeatable) |
+| `event_uid` | string | Canonical event identifier |
+
+## Response Schema
+
+```json
+{
+  "matches": [
+    {
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS",
+      "venues": {
+        "polymarket": {
+          "slug": "mlb-nyy-bos-2025-07-12",
+          "condition_id": "0xabc..."
+        },
+        "kalshi": {
+          "event_ticker": "KXMLBGAME-25JUL12NYYBOS"
+        }
+      },
+      "confidence": 0.97
+    }
+  ]
+}
+```
+
+## Example Request
+
+Map two Polymarket slugs to canonical markets:
+
+```bash
+curl -s -G -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "polymarket_slug=mlb-nyy-bos-2025-07-12" \
+  --data-urlencode "polymarket_slug=mlb-lad-sf-2025-07-12" \
+  "https://api.predexa.com/v1/matching/markets"
+```
+
+## Notes
+
+- **Multiple candidates**: When matching is ambiguous, multiple results may be returned. Use the `confidence` score to choose the best match or filter further.
+- **Confidence**: A score between 0 and 1 indicating match quality. Higher is better.
+- **Repeatable parameters**: Use array notation (`polymarket_slug[]`) to match multiple slugs in one request.
+
+## Related
+
+- [Resolve Selectors](/pages/discovery/resolve) — Bulk resolve mixed selectors
+- [List Markets](/pages/discovery/markets) — Browse all markets

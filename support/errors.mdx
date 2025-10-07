@@ -1,0 +1,131 @@
+---
+title: "Errors & Status Codes"
+description: "Problem+JSON format, common causes, and remediation"
+---
+
+# Errors & Status Codes
+
+## Overview
+
+All errors follow the [Problem+JSON](https://datatracker.ietf.org/doc/html/rfc7807) format.
+
+## Error Response Format
+
+```json
+{
+  "type": "https://api.predexa.com/errors/invalid-request",
+  "title": "Invalid Request",
+  "status": 400,
+  "detail": "Missing required parameter: event_uid",
+  "instance": "/v1/markets"
+}
+```
+
+## HTTP Status Codes
+
+| Status | Meaning | Common Causes |
+|--------|---------|---------------|
+| 400 | Bad Request | Invalid parameters, malformed JSON |
+| 401 | Unauthorized | Missing or invalid API key |
+| 403 | Forbidden | Insufficient permissions |
+| 404 | Not Found | Resource doesn't exist |
+| 409 | Conflict | Resource state conflict |
+| 422 | Unprocessable Entity | Invalid request data (semantically incorrect) |
+| 429 | Too Many Requests | Rate limit exceeded |
+| 500 | Internal Server Error | Server-side error |
+| 502 | Bad Gateway | Upstream service error |
+| 503 | Service Unavailable | Temporary service disruption |
+
+## Common Errors
+
+### 400 Bad Request
+
+**Causes:**
+- Missing required parameters
+- Invalid parameter values
+- Malformed JSON in request body
+
+**Remediation:**
+- Check API documentation for required parameters
+- Validate parameter types and formats
+- Verify JSON syntax
+
+### 401 Unauthorized
+
+**Causes:**
+- Missing `Authorization` header
+- Invalid API key
+- Expired API key
+
+**Remediation:**
+- Include `Authorization: Bearer YOUR_API_KEY` header
+- Verify API key is correct
+- Request new API key if expired
+
+### 403 Forbidden
+
+**Causes:**
+- API key lacks required permissions
+- Account suspended
+
+**Remediation:**
+- Check account permissions
+- Contact support for access issues
+
+### 404 Not Found
+
+**Causes:**
+- Invalid `market_uid` or `event_uid`
+- Resource has been deleted
+- Incorrect endpoint URL
+
+**Remediation:**
+- Verify resource identifiers
+- Check if resource still exists
+- Confirm endpoint URL is correct
+
+### 422 Unprocessable Entity
+
+**Causes:**
+- Invalid selector format
+- Incompatible parameter combinations
+- Business logic validation failure
+
+**Remediation:**
+- Review parameter constraints
+- Check example requests in documentation
+
+### 429 Too Many Requests
+
+**Causes:**
+- Exceeded rate limit
+
+**Remediation:**
+- Implement exponential backoff
+- Reduce request frequency
+- Review rate limits in [Authentication](/auth)
+- Consider caching responses
+
+### 500/502/503 Server Errors
+
+**Causes:**
+- Temporary service issues
+- Upstream dependencies unavailable
+
+**Remediation:**
+- Retry with exponential backoff
+- Check status page
+- Contact support if persistent
+
+## Error Handling Best Practices
+
+1. **Parse error response**: Always read the `detail` field for specific error information
+2. **Implement retries**: Use exponential backoff for 429, 500, 502, 503 errors
+3. **Log errors**: Include `instance` field for debugging
+4. **Validate before sending**: Client-side validation reduces 400/422 errors
+
+## Related
+
+- [Authentication](/auth)
+- [Conventions](/conventions)
+- [Contact & SLA](/support/contact)

@@ -1,0 +1,58 @@
+---
+title: Portfolio & Linking
+description: Unified balances, positions, PnL, activities, and live portfolio deltas across venues—plus account linking.
+---
+
+# Portfolio & Linking
+
+Link native venue accounts and query normalized balances, positions, PnL, and activities; subscribe to live portfolio deltas.
+
+## Base URLs
+
+- **REST**: `https://api.predexa.com/v1`
+- **WebSocket**: `wss://stream.predexa.com/v1`
+
+## Authentication
+
+All portfolio endpoints require authentication. Include your API token in the `Authorization` header.
+
+## Conventions
+
+For complete conventions (time format, numeric precision, pagination, IDs, error handling), see the [Discovery API Overview](/pages/discovery/overview).
+
+## What's Included
+
+### REST Endpoints
+- **Balances** — Cash and collateral by venue
+- **Positions** — Normalized outcome-level holdings with live marks
+- **PnL** — Realized, unrealized, and fees over time
+- **Activities** — Unified ledger of trades, deposits, withdrawals, resolutions
+
+### WebSocket
+- **Stream Portfolio** — Live positions and PnL deltas
+
+### Account Management
+- **Link Accounts** — Verify and link native venue accounts
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Balances" icon="wallet" href="/pages/portfolio/balances">
+    GET /v1/portfolio/balances
+  </Card>
+  <Card title="Positions" icon="chart-pie" href="/pages/portfolio/positions">
+    GET /v1/portfolio/positions
+  </Card>
+  <Card title="PnL" icon="arrow-trend-up" href="/pages/portfolio/pnl">
+    GET /v1/portfolio/pnl
+  </Card>
+  <Card title="Activities" icon="list-check" href="/pages/portfolio/activities">
+    GET /v1/portfolio/activities
+  </Card>
+  <Card title="Stream Portfolio" icon="tower-broadcast" href="/pages/portfolio/stream">
+    WS /v1/stream/portfolio
+  </Card>
+  <Card title="Link Accounts" icon="link" href="/pages/portfolio/link-accounts">
+    POST/GET /v1/link/wallets
+  </Card>
+</CardGroup>

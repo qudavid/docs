@@ -1,0 +1,79 @@
+---
+title: Recent Trades
+description: GET /v1/trades/{market_uid} returns recent prints with cursor pagination and optional time filters.
+---
+
+# Recent Trades
+
+```
+GET /v1/trades/{market_uid}
+```
+
+View recent executions ("prints") per market.
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `market_uid` | string | Canonical market identifier |
+
+## Query Parameters
+
+All parameters are optional.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `start` | string | Start time filter (ISO-8601 UTC timestamp) |
+| `end` | string | End time filter (ISO-8601 UTC timestamp) |
+| `limit` | integer | Results per page (default: 100, max: 1000) |
+| `cursor` | string | Opaque cursor from previous `next_cursor` |
+
+## Response Schema
+
+```json
+{
+  "market_uid": "mkt_evt_crypto_2025_07_01_BTC_above_75000_yesno",
+  "trades": [
+    {
+      "ts": "2025-07-01T08:12:44.120Z",
+      "outcome": "YES",
+      "price": "0.612",
+      "size": "150.00",
+      "venue_trade_id": "poly:7a9c21"
+    }
+  ],
+  "next_cursor": "eyJ0cyI6..."
+}
+```
+
+## Example Request
+
+Get recent BTC market prints:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/trades/mkt_evt_crypto_2025_07_01_BTC_above_75000_yesno?limit=200"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `trades` | Array of trade objects |
+| `trades[].ts` | Trade timestamp (ISO-8601 UTC) |
+| `trades[].outcome` | Outcome code (e.g., `YES`, `NO`) |
+| `trades[].price` | Execution price as string |
+| `trades[].size` | Trade size as string |
+| `trades[].venue_trade_id` | Venue-specific trade identifier |
+| `next_cursor` | Cursor for next page (if more results exist) |
+
+## Notes
+
+- **Time filters**: Use `start` and `end` for time-bounded pulls; otherwise use cursor pagination.
+- **Ordering**: Trades are ordered by timestamp (most recent first by default).
+- **venue_trade_id**: Prefixed with venue identifier (e.g., `poly:`, `kalshi:`) for debugging.
+
+## Related
+
+- [Top-of-Book Quotes](/pages/live-data/quotes) — Get current best prices
+- [Market Detail](/pages/discovery/market-detail) — Get market information

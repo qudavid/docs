@@ -1,0 +1,73 @@
+---
+title: Price Series (Ticks)
+description: GET /v1/price-series/{token_id} returns per-outcome tick data with cursor pagination.
+---
+
+# Price Series (Ticks)
+
+```
+GET /v1/price-series/{token_id}
+```
+
+Fine-grained tick data for a single outcome token.
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `token_id` | string | Venue outcome token identifier |
+
+## Query Parameters
+
+All parameters are optional.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `start` | string | Start time filter (ISO-8601 UTC timestamp) |
+| `end` | string | End time filter (ISO-8601 UTC timestamp) |
+| `limit` | integer | Results per page (default: 1000, max: 10000) |
+| `cursor` | string | Opaque cursor from previous `next_cursor` |
+
+## Response Schema
+
+```json
+{
+  "token_id": "2174263314...38836455",
+  "series": [
+    { "ts": "2025-03-14T14:01:02.120Z", "price": "0.604" },
+    { "ts": "2025-03-14T14:01:07.003Z", "price": "0.607" }
+  ],
+  "next_cursor": "eyJ0cyI6..."
+}
+```
+
+## Example Request
+
+Get tick data for ETH outcome token:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/price-series/2174263314...38836455?start=2025-03-14T14:00:00Z&end=2025-03-14T15:00:00Z&limit=2000"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `token_id` | Venue-specific outcome token identifier |
+| `series` | Array of price ticks |
+| `series[].ts` | Tick timestamp (ISO-8601 UTC) |
+| `series[].price` | Price at this tick as string |
+| `next_cursor` | Cursor for next page (if more results exist) |
+
+## Notes
+
+- **Fine-grained data**: Use price-series for model training, backtesting, or custom bar aggregation.
+- **Per-outcome**: For multi-outcome markets, request each token separately.
+- **Token IDs**: Obtain token IDs from the [Market Detail](/pages/discovery/market-detail) endpoint's `outcomes` array.
+- **High volume**: Tick data can be voluminous. Use time filters and pagination to manage response sizes.
+
+## Related
+
+- [Candles (OHLCV)](/pages/time-series/candles) — Pre-aggregated bars
+- [Market Detail](/pages/discovery/market-detail) — Get token IDs for outcomes

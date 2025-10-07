@@ -1,0 +1,41 @@
+---
+title: Historical Time Series
+description: Outcome-level OHLCV bars and per-outcome tick data with cursor pagination and strict UTC alignment.
+---
+
+# Historical Time Series
+
+Query normalized OHLCV candles per market and tick-level price series per outcome token, aligned to UTC with cursor pagination.
+
+## Base URLs
+
+- **REST**: `https://api.predexa.com/v1`
+
+## Conventions
+
+For complete conventions (time format, numeric precision, pagination, IDs, authentication, error handling), see the [Discovery API Overview](/pages/discovery/overview).
+
+### Bar Specifications
+
+- **Alignment**: Consistent `bar_spec` with alignment and boundary rules
+- **UTC timestamps**: All bars aligned to UTC boundaries
+- **Pagination**: Use `next_cursor` for long time ranges
+
+## Endpoints Covered
+
+### Candles (OHLCV)
+**GET /v1/candles/{market_uid}** — Outcome-level OHLCV bars with VWAP, volume, and open interest
+
+### Price Series (Ticks)
+**GET /v1/price-series/{token_id}** — Per-outcome tick data for fine-grained analysis
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Candles (OHLCV)" icon="chart-candlestick" href="/pages/time-series/candles">
+    GET /v1/candles/{market_uid}
+  </Card>
+  <Card title="Price Series (Ticks)" icon="chart-line" href="/pages/time-series/price-series">
+    GET /v1/price-series/{token_id}
+  </Card>
+</CardGroup>

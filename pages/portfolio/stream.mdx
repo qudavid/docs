@@ -1,0 +1,89 @@
+---
+title: Stream Portfolio
+description: WS /v1/stream/portfolio pushes positions and PnL deltas with a monotonic sequence.
+---
+
+# Stream Portfolio
+
+```
+WS /v1/stream/portfolio
+```
+
+Live positions and PnL deltas post-trade, mark update, or resolution.
+
+## Connection
+
+```
+wss://stream.predexa.com/v1/stream/portfolio
+```
+
+## Subscribe Payload
+
+```json
+{
+  "action": "subscribe",
+  "venues": ["POLYMARKET", "KALSHI"]
+}
+```
+
+## Message Format
+
+### Delta Message
+
+```json
+{
+  "type": "portfolio",
+  "sequence": 2418,
+  "positions_delta": [
+    {
+      "market_uid": "mkt_evt_mlb_2025_06_24_NYY_BOS_yesno",
+      "outcome": "NO",
+      "qty": "-25.0"
+    }
+  ],
+  "pnl_tick": {
+    "ts": "2025-10-06T19:21:02Z",
+    "unrealized_delta": "-1.85"
+  },
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Test
+
+Quick test with `wscat`:
+
+```bash
+wscat -c wss://stream.predexa.com/v1/stream/portfolio
+# then paste:
+# {"action":"subscribe","venues":["POLYMARKET","KALSHI"]}
+```
+
+## Message Fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Message type (always `"portfolio"`) |
+| `sequence` | Monotonic sequence number for ordering |
+| `positions_delta` | Array of position changes |
+| `positions_delta[].market_uid` | Market identifier |
+| `positions_delta[].outcome` | Outcome code |
+| `positions_delta[].qty` | Change in position quantity (negative for reductions) |
+| `pnl_tick` | PnL update |
+| `pnl_tick.ts` | Timestamp of PnL calculation |
+| `pnl_tick.unrealized_delta` | Change in unrealized PnL |
+| `asof` | Timestamp of this update |
+
+## Notes
+
+- **First message**: Initial message is a snapshot of all positions; subsequent messages are deltas.
+- **Sequence numbers**: Monotonically increasing. Use to detect gaps.
+- **Gap recovery**: If you detect a sequence gap, refresh positions via REST and resubscribe.
+- **Triggers**: Deltas are sent on trades, mark price updates, or market resolutions.
+- **Delta semantics**: `qty` in `positions_delta` is the change amount, not the new total.
+
+## Related
+
+- [Positions](/pages/portfolio/positions) — REST snapshot of positions
+- [PnL](/pages/portfolio/pnl) — Historical PnL data
+- [Live Data Overview](/pages/live-data/overview) — Streaming conventions

@@ -1,0 +1,81 @@
+---
+title: Market Detail
+description: GET /v1/markets/{market_uid} returns full rules, fees, outcomes, and native IDs.
+---
+
+# Market Detail
+
+```
+GET /v1/markets/{market_uid}
+```
+
+Get comprehensive market information including rules, fees, outcomes, and native venue identifiers. Everything needed to interpret and price a market.
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `market_uid` | string | Canonical market identifier |
+
+## Response Schema
+
+```json
+{
+  "market_uid": "mkt_evt_cpi_2025_10_14_YoY_above_3",
+  "event_uid": "evt_macro_2025_10_14_US_CPI",
+  "title": "US CPI YoY above 3.0%?",
+  "type": "binary",
+  "trading_status": "open",
+  "currency": "USD",
+  "tick_size": "0.0010",
+  "min_order_size": "1.00",
+  "fees": {
+    "taker_bps": 20,
+    "maker_bps": 0
+  },
+  "rules": {
+    "summary": "Pays YES if BLS CPI-U YoY ≥ 3.0% on the October 2025 release.",
+    "full_text": "...",
+    "sources": ["BLS CPI-U release"]
+  },
+  "outcomes": [
+    { "code": "YES", "token_id": "poly_token_yes" },
+    { "code": "NO",  "token_id": "poly_token_no" }
+  ],
+  "venue_ids": {
+    "polymarket": {
+      "slug": "us-cpi-oct-2025-above-3",
+      "condition_id": "0xdef..."
+    },
+    "kalshi": {
+      "event_ticker": "KXCPIOCT25-ABOVE3"
+    }
+  },
+  "timestamps": {
+    "created": "2025-08-05T15:00:00Z",
+    "close": "2025-10-14T12:30:00Z"
+  },
+  "asof": "2025-10-06T19:20:11Z"
+}
+```
+
+## Example Request
+
+Get full details for a CPI market:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/markets/mkt_evt_cpi_2025_10_14_YoY_above_3"
+```
+
+## Notes
+
+- **fees**: Expressed in basis points (bps). `taker_bps: 20` = 0.20% fee.
+- **rules**: Contains summary, full text, and data sources for market resolution.
+- **timestamps.close**: Scheduled close time. Actual trading halts are reflected in `trading_status`.
+- **min_order_size**: Minimum order size as a string for precision.
+
+## Related
+
+- [List Markets](/pages/discovery/markets) — Browse markets before fetching details
+- [Resolve Selectors](/pages/discovery/resolve) — Convert native IDs to market_uid

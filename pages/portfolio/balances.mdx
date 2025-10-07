@@ -1,0 +1,72 @@
+---
+title: Balances
+description: GET /v1/portfolio/balances returns balances per venue plus normalized totals.
+---
+
+# Balances
+
+```
+GET /v1/portfolio/balances
+```
+
+Cash and collateral by venue with normalized totals.
+
+## Response Schema
+
+```json
+{
+  "balances": [
+    {
+      "venue": "POLYMARKET",
+      "account_ref": "0x9a1b...",
+      "currency": "USDC",
+      "cash": "8200.00",
+      "collateral": "350.00"
+    },
+    {
+      "venue": "KALSHI",
+      "account_ref": "A98765",
+      "currency": "USD",
+      "cash": "17400.00",
+      "collateral": "0.00"
+    }
+  ],
+  "totals": [
+    { "currency": "USD", "cash": "25600.00" }
+  ],
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Request
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/portfolio/balances"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `balances` | Array of balances per venue |
+| `balances[].venue` | Venue identifier (e.g., `POLYMARKET`, `KALSHI`) |
+| `balances[].account_ref` | Venue-specific account reference |
+| `balances[].currency` | Currency code (e.g., `USDC`, `USD`) |
+| `balances[].cash` | Available cash balance as string |
+| `balances[].collateral` | Collateral posted for open positions as string |
+| `totals` | Normalized totals across venues |
+| `totals[].currency` | Normalized currency (usually `USD`) |
+| `totals[].cash` | Total available cash across all venues |
+| `asof` | Timestamp of this snapshot |
+
+## Notes
+
+- **Collateral**: Amount of cash allocated to margin requirements for open positions.
+- **Normalization**: Stablecoins like USDC are normalized to USD equivalents in `totals`.
+- **Multi-venue**: If you have linked accounts on multiple venues, all balances are returned.
+
+## Related
+
+- [Positions](/pages/portfolio/positions) — See open positions using your collateral
+- [Link Accounts](/pages/portfolio/link-accounts) — Link venue accounts to see balances

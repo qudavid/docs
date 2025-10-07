@@ -1,0 +1,46 @@
+---
+title: "Canonical IDs & Matching (Polymarket slugs, Kalshi tickers → market_uid)"
+description: "Learn how /v1/matching/markets and /v1/resolve map venue-native IDs to unified market_uid/event_uid for cross-venue parity."
+seo:
+  keywords: "polymarket slug, kalshi ticker, matching markets, resolve ids, market_uid, event_uid"
+---
+
+# Canonical IDs & Matching
+
+## Overview
+
+Understanding how Predexa maps venue-specific identifiers to canonical IDs for cross-venue normalization.
+
+## Key Concepts
+
+### event_uid
+
+Canonical event identifier across all venues.
+
+### market_uid
+
+Canonical market identifier across all venues.
+
+### venue_ids{}
+
+Object containing venue-specific identifiers (e.g., Polymarket slugs, Kalshi tickers).
+
+## Endpoints
+
+### /v1/matching/markets
+
+Discover matching markets across venues.
+
+Details will be documented here.
+
+### /v1/resolve
+
+Map venue-native IDs to canonical `market_uid` and `event_uid`.
+
+Details will be documented here.
+
+## Related
+
+- [POST /v1/resolve](/reference/resolve)
+- [GET /v1/matching/markets](/reference/matching)
+- [Quickstart](/quickstart)

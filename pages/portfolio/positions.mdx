@@ -1,0 +1,80 @@
+---
+title: Positions
+description: GET /v1/portfolio/positions returns normalized outcome-level holdings with live marks.
+---
+
+# Positions
+
+```
+GET /v1/portfolio/positions
+```
+
+Unified holdings across venues per outcome.
+
+## Query Parameters
+
+All parameters are optional.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `venue` | enum | Filter by venue: `POLYMARKET`, `KALSHI` |
+| `market_uid` | string | Filter by canonical market identifier |
+
+## Response Schema
+
+```json
+{
+  "positions": [
+    {
+      "market_uid": "mkt_evt_atp_2025_07_14_WIMBLEDON_final_yesno",
+      "venue": "POLYMARKET",
+      "outcome": "YES",
+      "qty": "320.000000",
+      "avg_cost": "0.4410",
+      "mark_price": "0.4620",
+      "market_value": "147.84",
+      "im_margin": "32.00",
+      "mm_margin": "25.00"
+    }
+  ],
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Request
+
+Get all Polymarket positions:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/portfolio/positions?venue=POLYMARKET"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `positions` | Array of position objects |
+| `positions[].market_uid` | Canonical market identifier |
+| `positions[].venue` | Venue where position is held |
+| `positions[].outcome` | Outcome code (e.g., `YES`, `NO`) |
+| `positions[].qty` | Position quantity (shares/contracts) as string |
+| `positions[].avg_cost` | Average cost per share as string |
+| `positions[].mark_price` | Current market price as string |
+| `positions[].market_value` | Current market value (qty × mark_price) |
+| `positions[].im_margin` | Initial margin requirement |
+| `positions[].mm_margin` | Maintenance margin requirement |
+| `asof` | Timestamp of this snapshot |
+
+## Notes
+
+- **Live marks**: `mark_price` is updated in real-time based on current market conditions.
+- **Unrealized PnL**: Calculate as `(mark_price - avg_cost) × qty`.
+- **Margin**: `im_margin` is required to open; `mm_margin` is the minimum to maintain.
+- **Multi-venue**: Positions from all linked venues are returned unless filtered.
+
+## Related
+
+- [PnL](/pages/portfolio/pnl) — See realized and unrealized profit/loss
+- [Stream Portfolio](/pages/portfolio/stream) — Real-time position updates
+- [Market Detail](/pages/discovery/market-detail) — Get market information

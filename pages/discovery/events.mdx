@@ -1,0 +1,73 @@
+---
+title: List Events
+description: GET /v1/events returns canonical events with venue-native IDs for hopping.
+---
+
+# List Events
+
+```
+GET /v1/events
+```
+
+Discover events across venues. Each event may have multiple markets. Events serve as anchors for cross-venue matching.
+
+## Query Parameters
+
+All parameters are optional.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `category` | string | Filter by category (e.g., `sports/baseball/mlb`, `politics/elections/us`) |
+| `event_status` | enum | One of: `scheduled`, `live`, `resolved`, `cancelled` |
+| `date` | string | Filter by scheduled start date (format: `YYYY-MM-DD`) |
+| `participant` | string | Simple participant code (e.g., `NYY`, `BOS`) |
+| `event_uid` | string | Exact match on canonical event ID |
+| `venue` | enum | One of: `POLYMARKET`, `KALSHI` |
+| `polymarket_slug` | string | Match Polymarket slug |
+| `kalshi_event_ticker` | string | Match Kalshi event ticker |
+| `limit` | integer | Results per page (default: 50, max: 200) |
+| `cursor` | string | Opaque cursor from previous `next_cursor` |
+
+## Response Schema
+
+```json
+{
+  "events": [
+    {
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS",
+      "title": "NYY vs BOS",
+      "category": "sports/baseball/mlb",
+      "scheduled_start": "2025-07-12T23:05:00Z",
+      "event_status": "scheduled",
+      "participants": ["NYY", "BOS"],
+      "venue_ids": {
+        "polymarket": ["mlb-nyy-bos-2025-07-12"],
+        "kalshi": ["KXMLBGAME-25JUL12NYYBOS"]
+      },
+      "asof": "2025-10-06T19:20:11Z"
+    }
+  ],
+  "next_cursor": "eyJpZCI6..."
+}
+```
+
+## Example Request
+
+List MLB events for a specific date:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/events?category=sports/baseball/mlb&date=2025-07-12&limit=100"
+```
+
+## Notes
+
+- **Participants** are simple codes in V1 (e.g., team abbreviations, candidate names). These may be enriched in future versions.
+- **event_status** reflects the event lifecycle and differs from market `trading_status`.
+- **venue_ids** provides native identifiers for each venue, allowing you to "hop" to venue-specific systems when needed.
+- **asof** timestamp indicates when this snapshot was captured.
+
+## Related
+
+- [List Markets](/pages/discovery/markets) — Get markets for an event
+- [Matching Markets](/pages/discovery/matching) — Map native IDs to canonical IDs

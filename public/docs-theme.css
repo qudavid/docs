@@ -1,0 +1,75 @@
+/* Predexa — Docs Theme (dark-first) */
+:root[data-theme="dark"] {
+  --px-bg: #0D1322;          /* content bg (card) */
+  --px-chrome: #0B0F1A;      /* sidebar/header */
+  --px-text: #E6E9F2;
+  --px-muted: #9AA3B2;
+  --px-border: #1F2937;
+  --px-primary: #3EE6E6;
+  --px-secondary: #8A5CF6;
+  --px-code-bg: #0B1220;
+  --px-inline-code-bg: #101826;
+  --px-focus: rgba(62,230,230,0.36);
+}
+
+/* Page + sidebar */
+.mintlify .container, .documentation .container, .docs-container {
+  background: var(--px-bg) !important;
+  color: var(--px-text) !important;
+}
+.sidebar, .sidebar-container {
+  background: var(--px-chrome) !important;
+  border-right: 1px solid var(--px-border) !important;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em !important;
+}
+
+/* Links */
+a { color: var(--px-primary); }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Code blocks */
+pre, code[class*="language-"] {
+  background: var(--px-code-bg) !important;
+  border: 1px solid var(--px-border) !important;
+}
+code:not([class*="language-"]) {
+  background: var(--px-inline-code-bg);
+  padding: .08rem .36rem;
+  border-radius: .35rem;
+}
+
+/* Tables */
+table { border-color: var(--px-border) !important; }
+th, td { border-color: var(--px-border) !important; }
+
+/* Callouts */
+.callout,
+.alert,
+blockquote {
+  border-left: 3px solid var(--px-primary) !important;
+  background: rgba(62, 230, 230, 0.08) !important;
+}
+
+/* Inputs */
+input, textarea, select {
+  background: #101826 !important;
+  border: 1px solid var(--px-border) !important;
+  color: var(--px-text) !important;
+}
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid var(--px-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* Badges / small highlights */
+.badge.new, .chip.new {
+  background: rgba(138, 92, 246, 0.18) !important;
+  color: #DCD4FB !important;
+  border: 1px solid rgba(138, 92, 246, 0.45) !important;
+}

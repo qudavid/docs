@@ -1,0 +1,91 @@
+---
+title: Stream Quotes
+description: WS /v1/stream/quotes pushes best bid/ask/last snapshots and deltas with monotonic sequence numbers.
+---
+
+# Stream Quotes
+
+```
+WS /v1/stream/quotes
+```
+
+Subscribe to quote snapshots and subsequent deltas for one or more markets.
+
+## Connection
+
+```
+wss://stream.predexa.com/v1/stream/quotes
+```
+
+## Subscribe Payload
+
+```json
+{
+  "action": "subscribe",
+  "markets": ["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"]
+}
+```
+
+## Message Format
+
+### Snapshot/Delta Message
+
+```json
+{
+  "type": "quote",
+  "market_uid": "mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno",
+  "sequence": 104520,
+  "outcomes": {
+    "YES": { "bid": "0.492", "ask": "0.498" },
+    "NO": { "bid": "0.502", "ask": "0.508" }
+  },
+  "last": {
+    "YES": "0.495",
+    "NO": "0.505"
+  },
+  "volume_24h_delta": {
+    "YES": "600",
+    "NO": "450"
+  },
+  "oi_delta": {
+    "YES": "300",
+    "NO": "0"
+  },
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Test
+
+Quick test with `wscat`:
+
+```bash
+wscat -c wss://stream.predexa.com/v1/stream/quotes
+# then paste:
+# {"action":"subscribe","markets":["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"]}
+```
+
+## Message Fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Message type (always `"quote"`) |
+| `market_uid` | Market identifier |
+| `sequence` | Monotonic sequence number for ordering |
+| `outcomes` | Best bid/ask per outcome |
+| `last` | Last trade price per outcome |
+| `volume_24h_delta` | Change in 24h volume since last message |
+| `oi_delta` | Change in open interest since last message |
+| `asof` | Timestamp of this update |
+
+## Notes
+
+- **First message**: Initial message per market is a snapshot; subsequent messages are deltas.
+- **Sequence numbers**: Monotonically increasing. Use to detect gaps.
+- **Gap recovery**: If you detect a sequence gap, resubscribe or use recovery (planned feature).
+- **Delta fields**: `volume_24h_delta` and `oi_delta` are incremental changes.
+
+## Related
+
+- [Top-of-Book Quotes](/pages/live-data/quotes) — REST snapshot endpoint
+- [Live Data Overview](/pages/live-data/overview) — Streaming conventions

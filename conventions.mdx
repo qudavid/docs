@@ -1,0 +1,44 @@
+---
+title: "Conventions"
+description: "Time, precision, pagination, IDs, filters, and response formats"
+---
+
+# Conventions
+
+## Time & Precision
+
+- **Time format**: ISO-8601 UTC
+- **Numbers**: Represented as strings for precision
+
+## Pagination
+
+- Uses `next_cursor` / `cursor` for pagination
+- Example usage will be documented here
+
+## IDs
+
+- `event_uid` — Canonical event identifier
+- `market_uid` — Canonical market identifier
+- `venue_ids{}` — Venue-specific identifiers
+
+## Statuses
+
+- `event_status` — Event lifecycle status
+- `trading_status` — Market trading status
+
+## Errors
+
+All errors follow the Problem+JSON format:
+
+```json
+{
+  "type": "https://api.dome.plus/errors/invalid-request",
+  "title": "Invalid Request",
+  "status": 400,
+  "detail": "Missing required parameter: event_uid"
+}
+```
+
+## Response Format
+
+Standard response envelope structure will be documented here.

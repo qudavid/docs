@@ -1,0 +1,84 @@
+---
+title: Stream Order Book (L2 Deltas)
+description: WS /v1/stream/orderbook pushes per-level add/replace/remove deltas with a shared sequence.
+---
+
+# Stream Order Book (L2 Deltas)
+
+```
+WS /v1/stream/orderbook
+```
+
+Subscribe to L2 changes per price level. Initial message is an L2 snapshot (from GET /orderbook) followed by deltas.
+
+## Connection
+
+```
+wss://stream.predexa.com/v1/stream/orderbook
+```
+
+## Subscribe Payload
+
+```json
+{
+  "action": "subscribe",
+  "markets": ["mkt_evt_election_2026_us_house_gop_control_yesno"]
+}
+```
+
+## Message Format
+
+### Delta Message
+
+```json
+{
+  "type": "l2_delta",
+  "market_uid": "mkt_evt_election_2026_us_house_gop_control_yesno",
+  "sequence": 781244,
+  "deltas": [
+    {
+      "outcome": "YES",
+      "side": "bid",
+      "px": "0.492",
+      "qty": "1100"
+    }
+  ],
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Test
+
+Quick test with `wscat`:
+
+```bash
+wscat -c wss://stream.predexa.com/v1/stream/orderbook
+# then paste:
+# {"action":"subscribe","markets":["mkt_evt_election_2026_us_house_gop_control_yesno"]}
+```
+
+## Message Fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Message type (always `"l2_delta"`) |
+| `market_uid` | Market identifier |
+| `sequence` | Monotonic sequence number for ordering |
+| `deltas` | Array of price level updates |
+| `deltas[].outcome` | Outcome code (e.g., `YES`, `NO`) |
+| `deltas[].side` | Order book side (`bid` or `ask`) |
+| `deltas[].px` | Price level as string |
+| `deltas[].qty` | New aggregated quantity at this level (replace semantics) |
+| `asof` | Timestamp of this update |
+
+## Notes
+
+- **First message**: Initial message is a full L2 snapshot (same format as GET /orderbook).
+- **Replace semantics**: The `qty` field is the new aggregate quantity at that price level. If `qty` is `"0"`, the level is removed.
+- **Sequence ordering**: Apply deltas in order of `sequence`. If you detect a gap, request a fresh snapshot.
+- **Multiple deltas**: A single message may contain multiple price level updates in the `deltas` array.
+
+## Related
+
+- [Order Book Snapshot](/pages/live-data/orderbook) — Get initial L2 state via REST
+- [Live Data Overview](/pages/live-data/overview) — Streaming conventions

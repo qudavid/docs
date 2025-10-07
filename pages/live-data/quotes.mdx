@@ -1,0 +1,66 @@
+---
+title: Top-of-Book Quotes
+description: GET /v1/quotes/{market_uid} returns best bid/ask/last, plus 24h stats and open interest per outcome.
+---
+
+# Top-of-Book Quotes
+
+```
+GET /v1/quotes/{market_uid}
+```
+
+Obtain best bid/ask/last per outcome plus useful stats (24h VWAP/volume, OI).
+
+## Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `market_uid` | string | Canonical market identifier |
+
+## Response Schema
+
+```json
+{
+  "market_uid": "mkt_evt_epl_2025_08_16_ARS_TOT_yesno",
+  "outcomes": {
+    "YES": { "bid": "0.542", "ask": "0.548", "last": "0.545" },
+    "NO":  { "bid": "0.452", "ask": "0.458", "last": "0.455" }
+  },
+  "spread": "0.006",
+  "vwap_24h": { "YES": "0.531", "NO": "0.469" },
+  "volume_24h": { "YES": "81200", "NO": "77650" },
+  "open_interest": { "YES": "210340", "NO": "203980" },
+  "asof": "2025-10-06T19:21:02Z"
+}
+```
+
+## Example Request
+
+Get quotes for an EPL derby winner market:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.predexa.com/v1/quotes/mkt_evt_epl_2025_08_16_ARS_TOT_yesno"
+```
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `outcomes` | Best bid/ask/last price per outcome |
+| `spread` | Minimum spread across outcomes (implementation-defined) |
+| `vwap_24h` | 24-hour volume-weighted average price per outcome |
+| `volume_24h` | 24-hour trading volume per outcome |
+| `open_interest` | Current open interest per outcome |
+| `asof` | Timestamp of this snapshot |
+
+## Notes
+
+- **spread**: The minimum spread across outcomes or chosen side. Calculation is consistent within the API.
+- **asof**: Indicates when this snapshot was captured on the Predexa side.
+- All numeric values are strings for fixed precision.
+
+## Related
+
+- [Stream Quotes](/pages/live-data/stream-quotes) — Real-time quote updates via WebSocket
+- [Market Detail](/pages/discovery/market-detail) — Get market rules and fees
