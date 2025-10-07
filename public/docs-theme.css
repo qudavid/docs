@@ -29,7 +29,6 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Links */
 a { color: var(--px-primary); }
-a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 /* Code blocks */
 pre, code[class*="language-"] {

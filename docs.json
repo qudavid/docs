@@ -115,18 +115,7 @@
       }
     ],
     "global": {
-      "anchors": [
-        {
-          "anchor": "API Reference",
-          "href": "https://docs.predexa.com",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Support",
-          "href": "https://predexa.com/support",
-          "icon": "question"
-        }
-      ]
+      "anchors": []
     }
   },
   "logo": {
@@ -134,17 +123,7 @@
     "dark": "/logo/dark.svg"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
+    "links": []
   },
   "contextual": {
     "options": [
