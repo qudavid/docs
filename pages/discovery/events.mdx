@@ -1,34 +1,51 @@
 ---
 title: List Events
-description: GET /v1/events returns canonical events with venue-native IDs for hopping.
+description: Discover canonical events (sports, politics, macro, etc.) with venue-native IDs for hopping into Polymarket and Kalshi.
 ---
 
 # List Events
 
-```
+> **GET `/v1/events`** — Discover canonical events across venues. Each event can map to multiple venue-native IDs and anchor one or more markets.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
+- **Pagination:** Cursor-based via `next_cursor` (no `prev_cursor`)
+
+## Common use cases
+
+- 🏟 **Sports on a date:** MLB games on `2025-07-12`
+- 🗳 **Upcoming elections:** US elections with `event_status=scheduled`
+- 📊 **Macro releases:** Find CPI/Fed events for a date to anchor markets
+
+## Endpoint
+
+```http
 GET /v1/events
 ```
 
-Discover events across venues. Each event may have multiple markets. Events serve as anchors for cross-venue matching.
+## Query parameters
 
-## Query Parameters
+All are optional unless noted.
 
-All parameters are optional.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `category` | string | Filter by category (e.g., `sports/baseball/mlb`, `politics/elections/us`) |
-| `event_status` | enum | One of: `scheduled`, `live`, `resolved`, `cancelled` |
-| `date` | string | Filter by scheduled start date (format: `YYYY-MM-DD`) |
-| `participant` | string | Simple participant code (e.g., `NYY`, `BOS`) |
-| `event_uid` | string | Exact match on canonical event ID |
-| `venue` | enum | One of: `POLYMARKET`, `KALSHI` |
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `category` | string | e.g. `sports/baseball/mlb`, `politics/elections/us`, `macro/cpi` |
+| `event_status` | enum | `scheduled` \| `live` \| `resolved` \| `cancelled` |
+| `date` | string | UTC date `YYYY-MM-DD`. Exact-match on the event's scheduled date in UTC. |
+| `participant` | string | Simple participant code (e.g., `NYY`, `BOS`, `BIDEN`) |
+| `event_uid` | string | Exact canonical ID match |
+| `venue` | enum | `POLYMARKET` \| `KALSHI` |
 | `polymarket_slug` | string | Match Polymarket slug |
 | `kalshi_event_ticker` | string | Match Kalshi event ticker |
-| `limit` | integer | Results per page (default: 50, max: 200) |
-| `cursor` | string | Opaque cursor from previous `next_cursor` |
+| `limit` | integer | Default 50, max 200 |
+| `cursor` | string | Opaque cursor from the previous page's `next_cursor` |
 
-## Response Schema
+<Info>
+**Tip:** Prefer `category` + `date` for daily scans; use `event_status` to catch late changes (postponed/cancelled vs scheduled).
+</Info>
+
+## Response schema
 
 ```json
 {
@@ -51,23 +68,155 @@ All parameters are optional.
 }
 ```
 
-## Example Request
+## Field reference
 
-List MLB events for a specific date:
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_uid` | string | Canonical, stable event identifier |
+| `title` | string | Human-readable event title |
+| `category` | string | Taxonomy path (e.g., `sports/baseball/mlb`) |
+| `scheduled_start` | string (ISO-8601) | Scheduled UTC start timestamp |
+| `event_status` | enum | Lifecycle: `scheduled`, `live`, `resolved`, `cancelled` |
+| `participants` | string[] | Simple codes (teams, candidates, etc.) |
+| `venue_ids.polymarket` | string[] | Polymarket market/event slugs referencing this event |
+| `venue_ids.kalshi` | string[] | Kalshi event tickers referencing this event |
+| `asof` | string (ISO-8601) | Snapshot capture time (useful for caching/checkpointing) |
+| `next_cursor` | string | Cursor for the next page (omit when last page) |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexa.com/v1/events?category=sports/baseball/mlb&date=2025-07-12&limit=100"
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+# 1) MLB events on a specific date
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?category=sports/baseball/mlb&date=2025-07-12&limit=100"
+
+# 2) US elections that are scheduled (not started)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?category=politics/elections/us&event_status=scheduled"
+
+# 3) Pagination: fetch the next page using next_cursor
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?cursor=eyJpZCI6..."
 ```
 
-## Notes
+```javascript JavaScript
+// Node 18+ (fetch)
+const base = "https://api.predexon.com/v1";
+const headers = { Authorization: `Bearer ${process.env.PREDX_TOKEN}` };
 
-- **Participants** are simple codes in V1 (e.g., team abbreviations, candidate names). These may be enriched in future versions.
-- **event_status** reflects the event lifecycle and differs from market `trading_status`.
-- **venue_ids** provides native identifiers for each venue, allowing you to "hop" to venue-specific systems when needed.
-- **asof** timestamp indicates when this snapshot was captured.
+async function listMlbByDate() {
+  const url = new URL(`${base}/events`);
+  url.searchParams.set("category", "sports/baseball/mlb");
+  url.searchParams.set("date", "2025-07-12");
+  url.searchParams.set("limit", "100");
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  const data = await res.json();
+  return data.events;
+}
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"}
+
+def list_us_elections_scheduled():
+  params = {
+    "category": "politics/elections/us",
+    "event_status": "scheduled"
+  }
+  r = requests.get(f"{BASE}/events", headers=HEADERS, params=params, timeout=30)
+  r.raise_for_status()
+  return r.json()["events"]
+```
+
+```go Go
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+  "net/http"
+  "net/url"
+  "os"
+)
+
+func main() {
+  q := url.Values{}
+  q.Set("category", "macro/cpi")
+  q.Set("date", "2025-10-14")
+
+  req, _ := http.NewRequest("GET", "https://api.predexon.com/v1/events?"+q.Encode(), nil)
+  req.Header.Set("Authorization", "Bearer "+os.Getenv("PREDX_TOKEN"))
+
+  res, err := http.DefaultClient.Do(req)
+  if err != nil { panic(err) }
+  defer res.Body.Close()
+
+  var out struct {
+    Events     []any  `json:"events"`
+    NextCursor string `json:"next_cursor"`
+  }
+  json.NewDecoder(res.Body).Decode(&out)
+  fmt.Println("events:", len(out.Events), "next_cursor:", out.NextCursor)
+}
+```
+
+</CodeGroup>
+
+## Pagination
+
+The API returns `next_cursor` when more results are available.
+
+```bash
+# First page
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?category=sports/baseball/mlb&date=2025-07-12&limit=100"
+
+# Follow-up page
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?cursor=eyJpZCI6..."
+```
+
+<Warning>
+No `prev_cursor` in v1. Keep your last cursor to iterate forward only.
+</Warning>
+
+## Errors
+
+All errors use Problem+JSON.
+
+```json
+{
+  "type": "https://api.predexon.com/errors/invalid-parameter",
+  "title": "Invalid parameter",
+  "status": 422,
+  "detail": "date must be YYYY-MM-DD",
+  "instance": "/v1/events"
+}
+```
+
+See [Errors & Status Codes](/support/errors) for full list and remediation tips.
+
+## Best practices
+
+1. **Daily scans:** Use `category` + `date` and store `event_uid` + `asof`.
+
+2. **Change detection:** Re-fetch with `event_status` filters to catch postponements/cancellations.
+
+3. **Cursor loops:** Continue until `next_cursor` is absent.
+
+4. **Venue hopping:** Use `venue_ids.*` to jump into venue-native lookups.
+
+5. **Caching:** Cache by querystring and invalidate when `asof` changes.
 
 ## Related
 
-- [List Markets](/pages/discovery/markets) - Get markets for an event
-- [Matching Markets](/pages/discovery/matching) - Map native IDs to canonical IDs
+- [List Markets](/pages/discovery/markets) — Markets under each event
+- [Market Detail](/pages/discovery/market-detail) — Rules, fees, and resolution text
+- [Matching Markets](/pages/discovery/matching) — Map venue selectors to canonical IDs
