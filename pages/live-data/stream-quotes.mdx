@@ -14,7 +14,7 @@ Subscribe to quote snapshots and subsequent deltas for one or more markets.
 ## Connection
 
 ```
-wss://stream.predexa.com/v1/stream/quotes
+wss://stream.predexon.com/v1/stream/quotes
 ```
 
 ## Subscribe Payload
@@ -60,7 +60,7 @@ wss://stream.predexa.com/v1/stream/quotes
 Quick test with `wscat`:
 
 ```bash
-wscat -c wss://stream.predexa.com/v1/stream/quotes
+wscat -c wss://stream.predexon.com/v1/stream/quotes
 # then paste:
 # {"action":"subscribe","markets":["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"]}
 ```

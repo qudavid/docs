@@ -14,7 +14,7 @@ Live positions and PnL deltas post-trade, mark update, or resolution.
 ## Connection
 
 ```
-wss://stream.predexa.com/v1/stream/portfolio
+wss://stream.predexon.com/v1/stream/portfolio
 ```
 
 ## Subscribe Payload
@@ -54,7 +54,7 @@ wss://stream.predexa.com/v1/stream/portfolio
 Quick test with `wscat`:
 
 ```bash
-wscat -c wss://stream.predexa.com/v1/stream/portfolio
+wscat -c wss://stream.predexon.com/v1/stream/portfolio
 # then paste:
 # {"action":"subscribe","venues":["POLYMARKET","KALSHI"]}
 ```

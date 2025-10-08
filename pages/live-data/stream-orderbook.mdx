@@ -14,7 +14,7 @@ Subscribe to L2 changes per price level. Initial message is an L2 snapshot (from
 ## Connection
 
 ```
-wss://stream.predexa.com/v1/stream/orderbook
+wss://stream.predexon.com/v1/stream/orderbook
 ```
 
 ## Subscribe Payload
@@ -52,7 +52,7 @@ wss://stream.predexa.com/v1/stream/orderbook
 Quick test with `wscat`:
 
 ```bash
-wscat -c wss://stream.predexa.com/v1/stream/orderbook
+wscat -c wss://stream.predexon.com/v1/stream/orderbook
 # then paste:
 # {"action":"subscribe","markets":["mkt_evt_election_2026_us_house_gop_control_yesno"]}
 ```

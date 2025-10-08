@@ -12,7 +12,7 @@ Get your first API calls working in 10 minutes.
 ## Prerequisites
 
 - API key (contact us for access)
-- Base URL: `https://api.predexa.com`
+- Base URL: `https://api.predexon.com`
 - curl, Node.js, or Python environment
 
 ## Step 1: Resolve native IDs
@@ -20,7 +20,7 @@ Get your first API calls working in 10 minutes.
 Map venue-specific identifiers to canonical `market_uid` values.
 
 ```bash
-curl -X POST https://api.predexa.com/v1/resolve \
+curl -X POST https://api.predexon.com/v1/resolve \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"venue": "polymarket", "slug": "will-biden-win-2024"}'
@@ -33,7 +33,7 @@ Response structure and examples will be documented here.
 Fetch all markets for an event.
 
 ```bash
-curl https://api.predexa.com/v1/markets?event_uid=EVENT_UID \
+curl https://api.predexon.com/v1/markets?event_uid=EVENT_UID \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -42,7 +42,7 @@ curl https://api.predexa.com/v1/markets?event_uid=EVENT_UID \
 Get the current best bid/ask/last for a market.
 
 ```bash
-curl https://api.predexa.com/v1/quotes/MARKET_UID \
+curl https://api.predexon.com/v1/quotes/MARKET_UID \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -51,7 +51,7 @@ curl https://api.predexa.com/v1/quotes/MARKET_UID \
 Retrieve L2 order book depth.
 
 ```bash
-curl https://api.predexa.com/v1/orderbook/MARKET_UID \
+curl https://api.predexon.com/v1/orderbook/MARKET_UID \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

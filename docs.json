@@ -103,9 +103,6 @@
   "navbar": {
     "links": []
   },
-  "chat": {
-    "enabled": false
-  },
   "contextual": {
     "options": [
      "copy",
