@@ -11,7 +11,7 @@
     "default": "dark",
     "strict": false
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/logo/predexon-logo.png",
   "navigation": {
     "tabs": [
       {
