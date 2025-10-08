@@ -4,8 +4,8 @@
   "name": "Predexon Unified Prediction Markets API",
   "colors": {
     "primary": "#8A5CF6",
-    "light": "#8A5CF6",
-    "dark": "#3EE6E6"
+    "light": "#3EE6E6",
+    "dark": "#8A5CF6"
   },
   "favicon": "/favicon.svg",
   "navigation": {
