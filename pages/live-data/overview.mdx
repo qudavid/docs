@@ -1,6 +1,6 @@
 ---
 title: Predexon Live Data API
-description: Real-time and recent prices across venues—top-of-book quotes, prints, and order book depth with snapshot/delta streaming.
+description: Real-time and recent prices across venues-top-of-book quotes, prints, and order book depth with snapshot/delta streaming.
 ---
 
 # Predexon Live Data API
@@ -20,22 +20,22 @@ For complete conventions (time format, numeric precision, pagination, IDs, authe
 
 WebSocket streams follow a **snapshot then deltas** pattern:
 
-1. **Initial snapshot** — Full state when you first subscribe
-2. **Delta messages** — Incremental updates with monotonic `sequence` integers
-3. **Gap detection** — If you detect a sequence gap, resubscribe or request a fresh snapshot
+1. **Initial snapshot** - Full state when you first subscribe
+2. **Delta messages** - Incremental updates with monotonic `sequence` integers
+3. **Gap detection** - If you detect a sequence gap, resubscribe or request a fresh snapshot
 
 ## What's Included
 
 ### Quotes (REST/WS)
-- **GET /v1/quotes/{market_uid}** — Top-of-book snapshot with 24h stats
-- **WS /v1/stream/quotes** — Real-time quote updates
+- **GET /v1/quotes/{market_uid}** - Top-of-book snapshot with 24h stats
+- **WS /v1/stream/quotes** - Real-time quote updates
 
 ### Trades (REST)
-- **GET /v1/trades/{market_uid}** — Recent trade history with pagination
+- **GET /v1/trades/{market_uid}** - Recent trade history with pagination
 
 ### Order Book L2 (REST/WS)
-- **GET /v1/orderbook/{market_uid}** — Aggregated order book snapshot
-- **WS /v1/stream/orderbook** — Real-time L2 depth updates
+- **GET /v1/orderbook/{market_uid}** - Aggregated order book snapshot
+- **WS /v1/stream/orderbook** - Real-time L2 depth updates
 
 ## Endpoints
 

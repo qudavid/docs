@@ -1,97 +1,67 @@
 ---
 title: "Introduction"
-description: "Welcome to the new home for your documentation"
+description: "Unified prediction markets data API - access Polymarket and Kalshi with one schema."
+seo:
+  keywords: "prediction markets api, polymarket api, kalshi api, order book api, quotes api, ohlcv, tick data, sports prediction markets"
 ---
 
-## Setting up
+# Predexon API Documentation
 
-Get your documentation site up and running in minutes.
+Welcome to Predexon - a unified data API for prediction markets. Access normalized market data from **Polymarket** and **Kalshi** through a single integration.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
+## Why Predexon?
+
+Building on multiple prediction market platforms means dealing with different APIs, data formats, and authentication methods. Predexon solves this by providing:
+
+- **Unified Schema** - One consistent data model across all venues
+- **Multi-Venue Access** - Integrate once, access Polymarket and Kalshi
+- **Real-Time & Historical** - Live WebSocket feeds and historical OHLCV data
+- **Production-Ready** - Built for reliability, performance, and scale
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Discovery API" icon="magnifying-glass" href="/pages/discovery/overview">
+    Search events and markets across venues. Resolve native IDs to canonical identifiers.
+  </Card>
+  <Card title="Live Data API" icon="chart-line" href="/pages/live-data/overview">
+    Real-time quotes, L2 order books, and trade history with WebSocket support.
+  </Card>
+  <Card title="Time Series API" icon="clock" href="/pages/time-series/overview">
+    Historical OHLCV candles, tick data, and price series at multiple intervals.
+  </Card>
+  <Card title="Portfolio API" icon="wallet" href="/pages/portfolio/overview">
+    Link accounts and track positions, balances, and P&L across venues.
+  </Card>
+</CardGroup>
+
+## Getting Started
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart" horizontal>
+  Make your first API call in 10 minutes
 </Card>
 
-## Make it yours
+## Use Cases
 
-Design a docs site that looks great and empowers your users.
+- **Algorithmic Trading** - Build trading bots with real-time order book and quote data
+- **Market Analysis** - Analyze historical price movements and volume patterns
+- **Portfolio Management** - Track positions and performance across multiple venues
+- **Market Making** - Access L2 order book depth for liquidity provision
+- **Research & Analytics** - Historical data for backtesting and research
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+## Support
 
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Complete endpoint documentation
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Error Reference" icon="triangle-exclamation" href="/support/errors">
+    Error codes and troubleshooting
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Changelog" icon="clock-rotate-left" href="/support/changelog">
+    API updates and changes
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Contact Us" icon="envelope" href="/support/contact">
+    Get help and support
   </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+</CardGroup>

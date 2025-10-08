@@ -53,27 +53,27 @@ Authorization: Bearer <token>
 ## Status Enums
 
 ### event_status
-- `scheduled` — Event is scheduled but hasn't started
-- `live` — Event is currently in progress
-- `resolved` — Event has concluded and results are final
-- `cancelled` — Event was cancelled
+- `scheduled` - Event is scheduled but hasn't started
+- `live` - Event is currently in progress
+- `resolved` - Event has concluded and results are final
+- `cancelled` - Event was cancelled
 
 ### trading_status
-- `open` — Market is open for trading
-- `halted` — Trading is temporarily suspended
-- `closed` — Market is closed (no more trading)
+- `open` - Market is open for trading
+- `halted` - Trading is temporarily suspended
+- `closed` - Market is closed (no more trading)
 
 ## Error Handling
 
 Standard HTTP status codes are returned:
 
-- `400` — Bad Request
-- `401` — Unauthorized
-- `403` — Forbidden
-- `404` — Not Found
-- `422` — Unprocessable Entity
-- `429` — Too Many Requests
-- `5xx` — Server Errors
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `422` - Unprocessable Entity
+- `429` - Too Many Requests
+- `5xx` - Server Errors
 
 Problem+JSON format may be used for detailed error responses in future versions.
 

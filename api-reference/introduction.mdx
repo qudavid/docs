@@ -1,33 +1,82 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: 'API Reference'
+description: 'Complete REST and WebSocket API reference for Predexon'
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+# API Reference
 
-## Welcome
+This section provides detailed API endpoint documentation for all Predexon services.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+## Base URLs
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+- **REST API**: `https://api.predexon.com/v1`
+- **WebSocket**: `wss://stream.predexon.com/v1`
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+All API requests require authentication using Bearer tokens in the Authorization header:
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+```bash
+Authorization: Bearer YOUR_API_KEY
 ```
+
+Contact us to obtain an API key for accessing Predexon services.
+
+## API Overview
+
+<CardGroup cols={2}>
+  <Card title="Discovery API" icon="magnifying-glass" href="/pages/discovery/overview">
+    Find events, markets, and resolve venue-specific identifiers
+  </Card>
+  <Card title="Live Data API" icon="chart-line" href="/pages/live-data/overview">
+    Real-time quotes, trades, and order book data
+  </Card>
+  <Card title="Time Series API" icon="clock" href="/pages/time-series/overview">
+    Historical OHLCV candles and price series
+  </Card>
+  <Card title="Portfolio API" icon="wallet" href="/pages/portfolio/overview">
+    Link accounts and track positions across venues
+  </Card>
+</CardGroup>
+
+## Data Formats
+
+### Timestamps
+All timestamps are in ISO-8601 UTC format:
+```
+2025-10-06T19:21:02Z
+```
+
+### Numbers
+All numeric fields use string representation for fixed precision:
+```json
+{
+  "price": "0.5234",
+  "volume": "12345.67"
+}
+```
+
+### Pagination
+Cursor-based pagination is used throughout:
+```bash
+?cursor=<opaque_string>&limit=<integer>
+```
+
+Response includes `next_cursor` for fetching subsequent pages.
+
+## Rate Limits
+
+API rate limits are enforced per API key. Exceeding rate limits returns a `429 Too Many Requests` error.
+
+## Error Handling
+
+Standard HTTP status codes:
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `422` - Unprocessable Entity
+- `429` - Too Many Requests
+- `5xx` - Server Errors
+
+See [Error Reference](/support/errors) for detailed error codes and troubleshooting.
