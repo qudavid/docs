@@ -13,7 +13,7 @@ Link and verify native venue accounts to enable portfolio tracking across Polyma
 POST /v1/link/wallets
 ```
 
-Verify and persist the mapping between your Predexa identity and venue accounts.
+Verify and persist the mapping between your Predexon identity and venue accounts.
 
 ### Request Examples
 
@@ -63,7 +63,7 @@ Link Polymarket wallet:
 curl -s -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"venue":"POLYMARKET","address":"0x7c3d...","signature":"0x..."}' \
-  "https://api.predexa.com/v1/link/wallets"
+  "https://api.predexon.com/v1/link/wallets"
 ```
 
 ## List Linked Accounts
@@ -98,7 +98,7 @@ Fetch all linked accounts and their verification status.
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexa.com/v1/link/wallets"
+  "https://api.predexon.com/v1/link/wallets"
 ```
 
 ## Response Fields
@@ -120,14 +120,14 @@ Requires EVM signature proving ownership of the wallet address.
 
 1. Sign a message with your wallet
 2. Include the `signature` in the request
-3. Predexa verifies the signature matches the address
+3. Predexon verifies the signature matches the address
 
 ### Kalshi
 Requires API key hint for account verification.
 
 1. Provide your Kalshi `account_id`
 2. Include `api_key_hint` (last few characters of your API key)
-3. Predexa verifies the account mapping
+3. Predexon verifies the account mapping
 
 ## Notes
 

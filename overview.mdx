@@ -1,39 +1,58 @@
 ---
-title: "Unified Prediction Markets API — Polymarket + Kalshi in one schema"
-description: "Discover, price, and stream prediction markets across Polymarket and Kalshi with one API. Normalized events/markets, quotes, order books, trades, candles, and tick data."
+title: "Welcome"
+description: "Unified prediction markets data API — access Polymarket and Kalshi with one schema."
 seo:
   keywords: "prediction markets api, polymarket api, kalshi api, order book api, quotes api, ohlcv, tick data, sports prediction markets"
 ---
 
-# Overview
+# Welcome to Predexon
 
-## Unify Polymarket + Kalshi with one API
+Predexon is a unified data API for prediction markets. Access normalized market data from Polymarket and Kalshi through a single integration.
 
-Access events, markets, quotes, order books, trades, candles, tick data, and portfolio data across multiple prediction market venues with a single, normalized API.
+## What Predexon provides
 
-## Why Predexa
+**Discovery**
+- Search events and markets across venues
+- Resolve venue-native IDs (Polymarket slugs, Kalshi tickers) to canonical identifiers
+- Match equivalent markets across platforms
 
-- **Cross-venue normalization** — consistent data models across Polymarket and Kalshi
-- **Fewer integrations** — one API instead of managing multiple venue-specific endpoints
-- **Consistent models** — unified event, market, and outcome schemas
+**Live Market Data**
+- Real-time quotes (bid/ask/last)
+- Trade history with pagination
+- L2 order book snapshots
+- WebSocket streams for quotes and order book updates
 
-## What you can build in a day
+**Historical Data**
+- OHLCV candles at multiple intervals
+- Tick-level price history
+- 24h volume and VWAP
 
-- Price widgets
-- Live tickers
-- Sports dashboards
-- Portfolio views
+**Portfolio Tracking** (optional)
+- Link Polymarket and Kalshi accounts
+- View positions and balances across venues
+- Track P&L and activity history
+- Real-time portfolio updates via WebSocket
 
-## Next steps
+## Why use Predexon
 
-<CardGroup cols={3}>
+- **One API, multiple venues** — integrate once, access Polymarket and Kalshi
+- **Normalized data models** — consistent schemas across all venues
+- **Production-ready** — designed for reliability and performance
+- **Developer-friendly** — clean REST endpoints, WebSocket streams, and comprehensive documentation
+
+## Get started
+
+<CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Get started in 10 minutes
+    Make your first API call in 10 minutes
   </Card>
-  <Card title="Concepts" icon="lightbulb" href="/concepts/canonical-ids">
-    Understand core concepts
+  <Card title="Discovery API" icon="magnifying-glass" href="/pages/discovery/overview">
+    Find and resolve markets
   </Card>
-  <Card title="API Reference" icon="code" href="/reference/events">
-    Explore the endpoints
+  <Card title="Live Data API" icon="chart-line" href="/pages/live-data/overview">
+    Get quotes, trades, and order books
+  </Card>
+  <Card title="WebSocket Streams" icon="tower-broadcast" href="/pages/live-data/stream-quotes">
+    Subscribe to real-time updates
   </Card>
 </CardGroup>
