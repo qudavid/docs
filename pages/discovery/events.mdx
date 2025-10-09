@@ -1,22 +1,23 @@
 ---
 title: List Events
-description: Discover canonical events (sports, politics, macro, etc.) with venue-native IDs for hopping into Polymarket and Kalshi.
+description: Discover canonical events (sports, politics, macro, etc.) with venue-native IDs for accessing Polymarket and Kalshi APIs.
 ---
 
 # List Events
 
-> **GET `/v1/events`** — Discover canonical events across venues. Each event can map to multiple venue-native IDs and anchor one or more markets.
+> **GET `/v1/events`** — Discover canonical events across venues. Each event can map to multiple venue-native IDs and contains one or more markets.
 
 - **Base URL:** `https://api.predexon.com/v1`
 - **Auth:** `Authorization: Bearer <token>`
 - **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
 - **Pagination:** Cursor-based via `next_cursor` (no `prev_cursor`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header when exceeded.
 
 ## Common use cases
 
-- 🏟 **Sports on a date:** MLB games on `2025-07-12`
-- 🗳 **Upcoming elections:** US elections with `event_status=scheduled`
-- 📊 **Macro releases:** Find CPI/Fed events for a date to anchor markets
+- **Sports on a date:** MLB games on `2025-07-12`
+- **Upcoming elections:** US elections with `event_status=scheduled`
+- **Macro releases:** Find CPI/Fed events for a specific date
 
 ## Endpoint
 
@@ -30,19 +31,35 @@ All are optional unless noted.
 
 | Parameter | Type | Notes |
 |-----------|------|-------|
-| `category` | string | e.g. `sports/baseball/mlb`, `politics/elections/us`, `macro/cpi` |
-| `event_status` | enum | `scheduled` \| `live` \| `resolved` \| `cancelled` |
-| `date` | string | UTC date `YYYY-MM-DD`. Exact-match on the event's scheduled date in UTC. |
-| `participant` | string | Simple participant code (e.g., `NYY`, `BOS`, `BIDEN`) |
-| `event_uid` | string | Exact canonical ID match |
-| `venue` | enum | `POLYMARKET` \| `KALSHI` |
-| `polymarket_slug` | string | Match Polymarket slug |
-| `kalshi_event_ticker` | string | Match Kalshi event ticker |
-| `limit` | integer | Default 50, max 200 |
-| `cursor` | string | Opaque cursor from the previous page's `next_cursor` |
+| `category` | string | Hierarchical path (e.g., `sports/baseball/mlb`, `politics/elections/us`). Can query at any level. Categories are returned in event responses. |
+| `event_status` | enum | `scheduled` \| `live` \| `resolved` \| `cancelled`. Filter by event lifecycle state. |
+| `date` | string | UTC date `YYYY-MM-DD`. Returns events scheduled on this date (based on `scheduled_start` field). |
+| `participant` | string | Participant identifier returned in event `participants[]` array. Case-insensitive substring match. Examples: `NYY`, `BOS`, `TRUMP`. |
+| `event_uid[]` | string[] | Fetch specific events by canonical ID. Repeatable. Use when you already have event IDs from a previous call. |
+| `venue` | enum | `POLYMARKET` \| `KALSHI`. Returns events that exist on the specified venue (have entries in `venue_ids`). |
+| `polymarket_slug[]` | string[] | Polymarket event slug (from `venue_ids.polymarket[]`). Format: lowercase-hyphenated (e.g., `nfl-buf-kc-2025-01-26`). Repeatable. |
+| `kalshi_event_ticker[]` | string[] | Kalshi event ticker (from `venue_ids.kalshi[]`). Format: uppercase alphanumeric (e.g., `KXNFLGAME-25JAN26BUFKC`). Repeatable. |
+| `limit` | integer | Results per page. Default: 50, max: 200. |
+| `cursor` | string | Opaque pagination cursor from previous response's `next_cursor`. |
 
 <Info>
-**Tip:** Prefer `category` + `date` for daily scans; use `event_status` to catch late changes (postponed/cancelled vs scheduled).
+**Query behavior:**
+
+- **No parameters:** Returns all events (paginated), ordered by `scheduled_start` descending, then by `event_uid` ascending for same-timestamp events.
+- **Multiple parameters:** Combined with AND logic. Example: `category=sports&date=2025-07-12` returns sports events on that date only.
+- **Array parameters:** OR logic within the array. Example: `event_uid[]=evt_1&event_uid[]=evt_2` returns both events.
+- **Participant search:** Case-insensitive substring match. `participant=LA` matches `LAL`, `LAC`, `LAD`. Matches anywhere in participant code.
+</Info>
+
+<Info>
+**Where do IDs come from?**
+
+- **Categories & participants:** Returned in event responses. Use List Events to discover available values, then filter by them.
+- **Polymarket slugs:** Get from Polymarket's `/events` API or from previous Discovery API calls in `venue_ids.polymarket[]`.
+- **Kalshi tickers:** Get from Kalshi's `/events` API or from previous Discovery API calls in `venue_ids.kalshi[]`.
+- **event_uid:** Returned in all Discovery API responses. Store these for lookups.
+
+**Common pattern:** Call List Events with broad filters (`category` + `date`), then use returned `event_uid` or `venue_ids` for subsequent specific queries.
 </Info>
 
 ## Response schema
@@ -51,20 +68,20 @@ All are optional unless noted.
 {
   "events": [
     {
-      "event_uid": "evt_mlb_2025_07_12_NYY_BOS",
-      "title": "NYY vs BOS",
-      "category": "sports/baseball/mlb",
-      "scheduled_start": "2025-07-12T23:05:00Z",
+      "event_uid": "evt_nfl_2025_01_26_BUF_KC",
+      "title": "BUF vs KC",
+      "category": "sports/football/nfl",
+      "scheduled_start": "2025-01-26T18:30:00Z",
       "event_status": "scheduled",
-      "participants": ["NYY", "BOS"],
+      "participants": ["BUF", "KC"],
       "venue_ids": {
-        "polymarket": ["mlb-nyy-bos-2025-07-12"],
-        "kalshi": ["KXMLBGAME-25JUL12NYYBOS"]
+        "polymarket": ["nfl-buf-kc-2025-01-26"],
+        "kalshi": ["KXNFLGAME-25JAN26BUFKC"]
       },
-      "asof": "2025-10-06T19:20:11Z"
+      "asof": "2025-01-20T14:22:33Z"
     }
   ],
-  "next_cursor": "eyJpZCI6..."
+  "next_cursor": "eyJpZCI6MTIzNDU2fQ"
 }
 ```
 
@@ -78,9 +95,10 @@ All are optional unless noted.
 | `scheduled_start` | string (ISO-8601) | Scheduled UTC start timestamp |
 | `event_status` | enum | Lifecycle: `scheduled`, `live`, `resolved`, `cancelled` |
 | `participants` | string[] | Simple codes (teams, candidates, etc.) |
-| `venue_ids.polymarket` | string[] | Polymarket market/event slugs referencing this event |
-| `venue_ids.kalshi` | string[] | Kalshi event tickers referencing this event |
-| `asof` | string (ISO-8601) | Snapshot capture time (useful for caching/checkpointing) |
+| `venue_ids` | object | Venue-native identifiers for this event. Contains `polymarket` and `kalshi` arrays. Empty arrays (`[]`) indicate event not available on that venue. |
+| `venue_ids.polymarket` | string[] | Polymarket event slugs (use with `/events/slug/{slug}` endpoint). Empty if not on Polymarket. |
+| `venue_ids.kalshi` | string[] | Kalshi event tickers (use with `/events/{event_ticker}` endpoint). Empty if not on Kalshi. |
+| `asof` | string (ISO-8601) | Timestamp when this event data was captured. Changes when event details are updated (status, participants, venue mappings). Use for cache invalidation. |
 | `next_cursor` | string | Cursor for the next page (omit when last page) |
 
 ## Examples
@@ -96,7 +114,15 @@ curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/events?category=politics/elections/us&event_status=scheduled"
 
-# 3) Pagination: fetch the next page using next_cursor
+# 3) Fetch multiple events by canonical IDs (array syntax)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?event_uid[]=evt_mlb_2025_07_12_NYY_BOS&event_uid[]=evt_mlb_2025_07_12_LAD_SF"
+
+# Alternative: repeated parameter syntax (same result)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/events?event_uid=evt_mlb_2025_07_12_NYY_BOS&event_uid=evt_mlb_2025_07_12_LAD_SF"
+
+# 4) Pagination: fetch the next page using next_cursor
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/events?cursor=eyJpZCI6..."
 ```
@@ -169,35 +195,26 @@ func main() {
 
 </CodeGroup>
 
-## Pagination
-
-The API returns `next_cursor` when more results are available.
-
-```bash
-# First page
-curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
-  "https://api.predexon.com/v1/events?category=sports/baseball/mlb&date=2025-07-12&limit=100"
-
-# Follow-up page
-curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
-  "https://api.predexon.com/v1/events?cursor=eyJpZCI6..."
-```
-
-<Warning>
-No `prev_cursor` in v1. Keep your last cursor to iterate forward only.
-</Warning>
-
 ## Errors
 
-All errors use Problem+JSON.
+All errors return standard HTTP status codes with JSON error responses:
 
 ```json
 {
-  "type": "https://api.predexon.com/errors/invalid-parameter",
-  "title": "Invalid parameter",
-  "status": 422,
-  "detail": "date must be YYYY-MM-DD",
-  "instance": "/v1/events"
+  "error": {
+    "type": "invalid_parameter",
+    "message": "date must be in YYYY-MM-DD format",
+    "param": "date"
+  }
+}
+```
+
+**Empty results** return HTTP 200 with empty array:
+
+```json
+{
+  "events": [],
+  "next_cursor": null
 }
 ```
 
@@ -205,13 +222,13 @@ See [Errors & Status Codes](/support/errors) for full list and remediation tips.
 
 ## Best practices
 
-1. **Daily scans:** Use `category` + `date` and store `event_uid` + `asof`.
+1. **Daily scans:** Query with `category` + `date` filters. Store each event's `event_uid` (for future lookups) and `asof` timestamp (to detect when event data changes).
 
 2. **Change detection:** Re-fetch with `event_status` filters to catch postponements/cancellations.
 
 3. **Cursor loops:** Continue until `next_cursor` is absent.
 
-4. **Venue hopping:** Use `venue_ids.*` to jump into venue-native lookups.
+4. **Access venue APIs:** Extract `venue_ids.polymarket` or `venue_ids.kalshi` to call venue-specific endpoints for orderbooks, trade execution, or liquidity data.
 
 5. **Caching:** Cache by querystring and invalidate when `asof` changes.
 

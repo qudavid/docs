@@ -1,16 +1,86 @@
 ---
 title: Predexon Discovery API
-description: Find events and normalized markets across venues, then resolve or match native IDs to canonical IDs.
+description: Unified prediction market data across venues with canonical IDs and normalized schemas.
 ---
 
-# Predexon Discovery API
+The Discovery API unifies prediction market data across venues like Polymarket and Kalshi into a single, normalized interface.
 
-Use Predexon Discovery to find events and normalized markets across venues, then resolve or match venue-native IDs to canonical IDs.
+## Why Discovery?
+
+Each prediction market venue uses its own identifiers and data formats. Discovery solves this by providing:
+
+- **Canonical IDs** - Stable identifiers that work across venues (`event_uid`, `market_uid`)
+- **Normalized schemas** - Unified market types (`binary`, `multi`, `numeric`), standardized status fields (`open`, `halted`, `closed`), and ISO-8601 timestamps instead of venue-specific formats
+- **Bidirectional mapping** - Convert between canonical IDs and venue-native identifiers (slugs, tickers)
+
+### What Gets Normalized?
+
+Discovery standardizes differences between venues:
+
+| Aspect | Without Discovery | With Discovery |
+|--------|------------------|----------------|
+| **Market types** | Venue-specific `marketType` field values | Consistent `type: "binary"`, `"multi"`, or `"numeric"` |
+| **Status representation** | Polymarket: boolean flags (`active`, `closed`), Kalshi: string `status` | Consistent `trading_status: "open"`, `"halted"`, or `"closed"` |
+| **Field names** | Polymarket: event `slug`, market `id`; Kalshi: `event_ticker`, `ticker` | Unified field structure with `venue_ids{}` |
+| **Price formats** | Kalshi: both integers and dollar strings, Polymarket: mixed | Always string decimals (`"0.5500"`) |
+
+## Understanding IDs
+
+Predexon creates and maintains **canonical IDs** to represent the same real-world event across different venues. Each venue has its own native identifiers that you need when calling their APIs directly.
+
+### Example: The Same MLB Game Across Venues
+
+**Real-world event:** Yankees vs Red Sox on July 12, 2025
+
+**Event-level IDs:**
+| ID Type | Value | Where It's Used |
+|---------|-------|-----------------|
+| **Canonical Event ID** (Predexon) | `evt_mlb_2025_07_12_NYY_BOS` | Predexon Discovery API |
+| **Polymarket Slug** | `mlb-nyy-bos-2025-07-12` | Polymarket API |
+| **Kalshi Event Ticker** | `KXMLBGAME-25JUL12NYYBOS` | Kalshi API |
+
+**Market-level IDs** (for "Will Yankees win?" binary market):
+| ID Type | Value | Where It's Used |
+|---------|-------|-----------------|
+| **Canonical Market ID** (Predexon) | `mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy` | Predexon Discovery API |
+| **Polymarket Market ID** | `123456789` | Polymarket API |
+| **Kalshi Series Ticker** | `KXMLBNYY-25JUL12` | Kalshi API |
+
+### Why Two ID Systems?
+
+- **Canonical IDs** let you query once and get data from all venues
+- **Venue IDs** let you place orders or fetch venue-specific data (orderbooks, liquidity)
+- Discovery provides both in every response via the `venue_ids{}` field
+
+### When to Use Each
+
+- **Building multi-venue dashboards?** Use canonical IDs to avoid duplicate entries
+- **Placing trades on Polymarket?** Use the Polymarket slug from `venue_ids.polymarket`
+- **Have a Kalshi ticker and need market data?** Use Resolve/Matching to get the canonical `market_uid`
+
+### Common Workflows
+
+1. **Discover events by category and date** - Use [List Events](/pages/discovery/events) with filters like `category=sports/baseball/mlb&date=2025-07-12` to get canonical `event_uid` values
+2. **Find markets for an event** - Use the `event_uid` with [List Markets](/pages/discovery/markets) to get all associated markets with their `venue_ids`
+3. **Resolve venue-native IDs** - Have a Polymarket slug or Kalshi ticker? Use [Resolve Selectors](/pages/discovery/resolve) or [Matching Markets](/pages/discovery/matching) to get the canonical `market_uid`
+4. **Fetch market details** - Use [Market Detail](/pages/discovery/market-detail) to get rules, fees, and resolution criteria before integrating with venue APIs
+
+---
 
 ## Base URLs
 
 - **REST**: `https://api.predexon.com/v1`
 - **WebSocket**: `wss://stream.predexon.com/v1`
+
+## Authentication
+
+All requests require an API token in the authorization header:
+
+```
+Authorization: Bearer <token>
+```
+
+Contact [support@predexon.com](mailto:support@predexon.com) to request API credentials.
 
 ## Conventions
 
@@ -21,34 +91,39 @@ ISO-8601 UTC timestamps (e.g., `2025-10-06T19:21:02Z`)
 All numeric fields are strings for fixed precision (e.g., `"0.0010"`, `"1.00"`)
 
 ### Pagination
-Cursor-based pagination model:
 
-**Request:**
+Discovery endpoints use cursor-based pagination to handle large result sets.
+
+**How it works:**
+1. Make your first request with a `limit` parameter (default: 50, max: 200)
+2. If more results exist, the response includes a `next_cursor` value
+3. Pass that cursor in your next request to get the next page
+4. Continue until `next_cursor` is absent (you've reached the end)
+
+**First request:**
 ```
-?cursor=<opaque_string>&limit=<integer>
+GET /v1/events?category=sports/baseball/mlb&limit=100
 ```
 
-**Response:**
+**Response with cursor:**
 ```json
 {
-  "next_cursor": "eyJpZCI6..."
+  "events": [...],
+  "next_cursor": "eyJpZCI6MTIzNDU2fQ"
 }
 ```
 
-No `prev_cursor` in MVP.
+**Next page request:**
+```
+GET /v1/events?cursor=eyJpZCI6MTIzNDU2fQ&limit=100
+```
+
+**Note:** Backward pagination (`prev_cursor`) is not supported in the current version. Store cursors if you need to resume iteration.
 
 ### IDs
 
-- **Canonical IDs**: `event_uid`, `market_uid`
-- **Venue IDs**: `venue_ids{}` always present for hopping to native IDs
-
-### Authentication
-
-All requests require an authorization header:
-
-```
-Authorization: Bearer <token>
-```
+- **Canonical IDs**: `event_uid`, `market_uid` - stable identifiers maintained by Predexon
+- **Venue IDs**: `venue_ids{}` - venue-specific identifiers (slugs, tickers, condition IDs) for accessing native APIs
 
 ## Status Enums
 
@@ -65,17 +140,27 @@ Authorization: Bearer <token>
 
 ## Error Handling
 
-Standard HTTP status codes are returned:
+All errors return standard HTTP status codes with JSON error responses:
 
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `422` - Unprocessable Entity
-- `429` - Too Many Requests
-- `5xx` - Server Errors
+- `400` - Bad Request (invalid parameters)
+- `401` - Unauthorized (missing or invalid token)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found (resource doesn't exist)
+- `422` - Unprocessable Entity (validation failed)
+- `429` - Too Many Requests (rate limit exceeded)
+- `5xx` - Server Errors (contact support)
 
-Problem+JSON format may be used for detailed error responses in future versions.
+Error responses follow this format:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "date must be in YYYY-MM-DD format",
+    "param": "date"
+  }
+}
+```
 
 ## Endpoints
 
