@@ -11,7 +11,7 @@ description: Discover canonical events (sports, politics, macro, etc.) with venu
 - **Auth:** `Authorization: Bearer <token>`
 - **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
 - **Pagination:** Cursor-based via `next_cursor` (no `prev_cursor`)
-- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header when exceeded.
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
 
 ## Common use cases
 
@@ -33,10 +33,10 @@ All are optional unless noted.
 |-----------|------|-------|
 | `category` | string | Hierarchical path (e.g., `sports/baseball/mlb`, `politics/elections/us`). Can query at any level. Categories are returned in event responses. |
 | `event_status` | enum | `scheduled` \| `live` \| `resolved` \| `cancelled`. Filter by event lifecycle state. |
-| `date` | string | UTC date `YYYY-MM-DD`. Returns events scheduled on this date (based on `scheduled_start` field). |
+| `date` | string | UTC date `YYYY-MM-DD`. Returns events where `scheduled_start` falls within this UTC calendar day (00:00:00 to 23:59:59 UTC). Inclusive. |
 | `participant` | string | Participant identifier returned in event `participants[]` array. Case-insensitive substring match. Examples: `NYY`, `BOS`, `TRUMP`. |
 | `event_uid[]` | string[] | Fetch specific events by canonical ID. Repeatable. Use when you already have event IDs from a previous call. |
-| `venue` | enum | `POLYMARKET` \| `KALSHI`. Returns events that exist on the specified venue (have entries in `venue_ids`). |
+| `venue` | enum | `polymarket` \| `kalshi`. Returns events that exist on the specified venue (have entries in `venue_ids`). |
 | `polymarket_slug[]` | string[] | Polymarket event slug (from `venue_ids.polymarket[]`). Format: lowercase-hyphenated (e.g., `nfl-buf-kc-2025-01-26`). Repeatable. |
 | `kalshi_event_ticker[]` | string[] | Kalshi event ticker (from `venue_ids.kalshi[]`). Format: uppercase alphanumeric (e.g., `KXNFLGAME-25JAN26BUFKC`). Repeatable. |
 | `limit` | integer | Results per page. Default: 50, max: 200. |
@@ -47,8 +47,10 @@ All are optional unless noted.
 
 - **No parameters:** Returns all events (paginated), ordered by `scheduled_start` descending, then by `event_uid` ascending for same-timestamp events.
 - **Multiple parameters:** Combined with AND logic. Example: `category=sports&date=2025-07-12` returns sports events on that date only.
-- **Array parameters:** OR logic within the array. Example: `event_uid[]=evt_1&event_uid[]=evt_2` returns both events.
+- **Array parameters:** OR logic within the array. Example: `event_uid[]=evt_1&event_uid[]=evt_2` returns both events. Maximum 50 values per array parameter.
+- **Venue selectors:** `event_uid[]`, `polymarket_slug[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_slug=slug1&kalshi_event_ticker=ticker1` returns events matching either selector. Results are deduplicated by `event_uid` (if multiple selectors resolve to the same event, it appears once).
 - **Participant search:** Case-insensitive substring match. `participant=LA` matches `LAL`, `LAC`, `LAD`. Matches anywhere in participant code.
+- **Pagination stability:** Results are ordered consistently across pages. The same query will return the same ordering unless data changes.
 </Info>
 
 <Info>
@@ -95,11 +97,11 @@ All are optional unless noted.
 | `scheduled_start` | string (ISO-8601) | Scheduled UTC start timestamp |
 | `event_status` | enum | Lifecycle: `scheduled`, `live`, `resolved`, `cancelled` |
 | `participants` | string[] | Simple codes (teams, candidates, etc.) |
-| `venue_ids` | object | Venue-native identifiers for this event. Contains `polymarket` and `kalshi` arrays. Empty arrays (`[]`) indicate event not available on that venue. |
-| `venue_ids.polymarket` | string[] | Polymarket event slugs (use with `/events/slug/{slug}` endpoint). Empty if not on Polymarket. |
-| `venue_ids.kalshi` | string[] | Kalshi event tickers (use with `/events/{event_ticker}` endpoint). Empty if not on Kalshi. |
+| `venue_ids` | object | Venue-native identifiers for this event. Contains `polymarket` and `kalshi` arrays. Empty arrays (`[]`) indicate event not available on that venue. Always present. |
+| `venue_ids.polymarket` | string[] | Polymarket event slugs (use with `/events/slug/{slug}` endpoint). Empty array (`[]`) if not on Polymarket. |
+| `venue_ids.kalshi` | string[] | Kalshi event tickers (use with `/events/{event_ticker}` endpoint). Empty array (`[]`) if not on Kalshi. |
 | `asof` | string (ISO-8601) | Timestamp when this event data was captured. Changes when event details are updated (status, participants, venue mappings). Use for cache invalidation. |
-| `next_cursor` | string | Cursor for the next page (omit when last page) |
+| `next_cursor` | string \| null | Cursor for the next page. Returns `null` on the last page. |
 
 ## Examples
 
@@ -122,9 +124,26 @@ curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/events?event_uid=evt_mlb_2025_07_12_NYY_BOS&event_uid=evt_mlb_2025_07_12_LAD_SF"
 
-# 4) Pagination: fetch the next page using next_cursor
+# 3b) Mix venue selectors (Polymarket slug + Kalshi ticker)
+# Returns events matching either selector, deduplicated by event_uid
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
-  "https://api.predexon.com/v1/events?cursor=eyJpZCI6..."
+  "https://api.predexon.com/v1/events?polymarket_slug=mlb-nyy-bos-2025-07-12&kalshi_event_ticker=KXNFLGAME-25JUL13LADSFG"
+
+# 4) Pagination loop: fetch all pages
+cursor=""
+while true; do
+  response=$(curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+    "https://api.predexon.com/v1/events?category=sports/baseball/mlb&limit=100${cursor:+&cursor=$cursor}")
+
+  # Process events
+  echo "$response" | jq '.events[]'
+
+  # Get next cursor
+  cursor=$(echo "$response" | jq -r '.next_cursor')
+
+  # Exit if no more pages
+  if [ "$cursor" = "null" ]; then break; fi
+done
 ```
 
 ```javascript JavaScript
@@ -143,6 +162,29 @@ async function listMlbByDate() {
   const data = await res.json();
   return data.events;
 }
+
+// Pagination loop: fetch all pages
+async function listAllMlbEvents() {
+  const allEvents = [];
+  let cursor = null;
+
+  while (true) {
+    const url = new URL(`${base}/events`);
+    url.searchParams.set("category", "sports/baseball/mlb");
+    url.searchParams.set("limit", "100");
+    if (cursor) url.searchParams.set("cursor", cursor);
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const data = await res.json();
+
+    allEvents.push(...data.events);
+    if (!data.next_cursor) break;
+    cursor = data.next_cursor;
+  }
+
+  return allEvents;
+}
 ```
 
 ```python Python
@@ -159,6 +201,27 @@ def list_us_elections_scheduled():
   r = requests.get(f"{BASE}/events", headers=HEADERS, params=params, timeout=30)
   r.raise_for_status()
   return r.json()["events"]
+
+# Pagination loop: fetch all pages
+def list_all_mlb_events():
+  all_events = []
+  cursor = None
+
+  while True:
+    params = {"category": "sports/baseball/mlb", "limit": 100}
+    if cursor:
+      params["cursor"] = cursor
+
+    r = requests.get(f"{BASE}/events", headers=HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+
+    all_events.extend(data["events"])
+    cursor = data.get("next_cursor")
+    if not cursor:
+      break
+
+  return all_events
 ```
 
 ```go Go
@@ -208,6 +271,20 @@ All errors return standard HTTP status codes with JSON error responses:
   }
 }
 ```
+
+### Error Types
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Parameter validation failed | Invalid date format, unknown enum value, malformed array syntax |
+| `400` | `invalid_cursor` | Pagination cursor is invalid or expired | Cursor is malformed, expired (>24h), or from different query |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token doesn't have access to Discovery API |
+| `404` | `not_found` | Resource doesn't exist | Invalid `event_uid` or endpoint path |
+| `422` | `too_many_values` | Array parameter exceeds limit | More than 50 values in array parameter |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 requests/minute. Check `Retry-After` header. |
+| `500` | `internal_error` | Server error | Contact support@predexon.com with request ID |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
 
 **Empty results** return HTTP 200 with empty array:
 

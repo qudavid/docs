@@ -52,6 +52,14 @@ Predexon creates and maintains **canonical IDs** to represent the same real-worl
 - **Venue IDs** let you place orders or fetch venue-specific data (orderbooks, liquidity)
 - Discovery provides both in every response via the `venue_ids{}` field
 
+### ID Format Contract
+
+**Canonical IDs are stable and permanent:**
+- `event_uid` format: `evt_{category}_{date}_{participants}` (e.g., `evt_nfl_2025_01_26_BUF_KC`)
+- `market_uid` format: `mkt_{event_uid}_{outcome}` (e.g., `mkt_evt_nfl_2025_01_26_BUF_KC_winner`)
+- IDs never change once assigned, even if event details are updated
+- Safe to store and use as primary keys in your database
+
 ### When to Use Each
 
 - **Building multi-venue dashboards?** Use canonical IDs to avoid duplicate entries
@@ -98,7 +106,7 @@ Discovery endpoints use cursor-based pagination to handle large result sets.
 1. Make your first request with a `limit` parameter (default: 50, max: 200)
 2. If more results exist, the response includes a `next_cursor` value
 3. Pass that cursor in your next request to get the next page
-4. Continue until `next_cursor` is absent (you've reached the end)
+4. Continue until `next_cursor` is `null` (you've reached the end)
 
 **First request:**
 ```

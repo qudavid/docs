@@ -1,82 +1,327 @@
 ---
 title: List Markets
-description: GET /v1/markets returns normalized markets with canonical and venue-native IDs.
+description: Discover normalized markets across venues with canonical and venue-native IDs.
 ---
 
 # List Markets
 
-```
+> **GET `/v1/markets`** — Discover normalized markets across venues. Each market belongs to an event and includes venue-native identifiers for accessing venue-specific APIs.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
+- **Pagination:** Cursor-based via `next_cursor` (no `prev_cursor`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Common use cases
+
+- **Markets for an event:** Get all markets for a specific event using `event_uid`
+- **Open binary markets:** Query `type=binary&trading_status=open` for active yes/no markets
+- **Venue-specific lookups:** Use venue slugs/tickers to get canonical market data
+
+## Endpoint
+
+```http
 GET /v1/markets
 ```
 
-Enumerate normalized markets across venues. Use this endpoint to discover markets and hop to native IDs when needed.
+## Query parameters
 
-## Query Parameters
+All are optional unless noted.
 
-All parameters are optional.
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `event_uid` | string | Filter markets by canonical event ID. Returns all markets for that event. |
+| `market_uid[]` | string[] | Fetch specific markets by canonical ID. Repeatable. Use when you already have market IDs. |
+| `type` | enum | `binary` \| `multi` \| `numeric`. Filter by market type. |
+| `trading_status` | enum | `open` \| `halted` \| `closed`. Filter by current trading status. |
+| `venue` | enum | `polymarket` \| `kalshi`. Returns markets available on the specified venue. |
+| `polymarket_slug[]` | string[] | Polymarket event slug (from events' `venue_ids.polymarket[]`). Format: lowercase-hyphenated. Repeatable. |
+| `polymarket_market_id[]` | string[] | Polymarket market ID. Format: numeric string (e.g., `123456789`). Repeatable. |
+| `kalshi_event_ticker[]` | string[] | Kalshi event ticker (from events' `venue_ids.kalshi[]`). Format: uppercase alphanumeric. Repeatable. |
+| `limit` | integer | Results per page. Default: 50, max: 200. |
+| `cursor` | string | Opaque pagination cursor from previous response's `next_cursor`. |
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `event_uid` | string | Filter by canonical event ID |
-| `type` | enum | One of: `binary`, `multi`, `numeric` |
-| `trading_status` | enum | One of: `open`, `halted`, `closed` |
-| `venue` | enum | One of: `POLYMARKET`, `KALSHI` |
-| `polymarket_slug` | string | Match Polymarket slug |
-| `polymarket_condition_id` | string | Match Polymarket condition ID |
-| `kalshi_event_ticker` | string | Match Kalshi event ticker |
-| `limit` | integer | Results per page (default: 50, max: 200) |
-| `cursor` | string | Opaque cursor from previous `next_cursor` |
+<Info>
+**Query behavior:**
 
-## Response Schema
+- **No parameters:** Returns all markets (paginated), ordered by `end_time` descending, then by `market_uid` ascending.
+- **Multiple parameters:** Combined with AND logic. Example: `event_uid=evt_1&type=binary` returns binary markets for that event only.
+- **Array parameters:** OR logic within the array. Example: `market_uid[]=mkt_1&market_uid[]=mkt_2` returns both markets. Maximum 50 values per array parameter.
+- **Venue selectors:** `market_uid[]`, `polymarket_market_id[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_market_id=123&kalshi_event_ticker=TICKER1` returns markets matching either selector. Results are deduplicated by `market_uid` (if multiple selectors resolve to the same market, it appears once).
+- **Pagination stability:** Results are ordered consistently across pages. The same query will return the same ordering unless data changes.
+</Info>
+
+<Info>
+**Where do IDs come from?**
+
+- **event_uid:** From [List Events](/pages/discovery/events) responses.
+- **market_uid:** Returned in all market responses. Store these for lookups.
+- **Polymarket slugs/IDs:** Get from Polymarket's API or from events' `venue_ids.polymarket[]`.
+- **Kalshi tickers:** Get from Kalshi's API or from events' `venue_ids.kalshi[]`.
+
+**Common pattern:** Call List Events to get `event_uid`, then use it here to get all markets for that event.
+</Info>
+
+## Response schema
 
 ```json
 {
   "markets": [
     {
-      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
-      "event_uid": "evt_mlb_2025_07_12_NYY_BOS",
+      "market_uid": "mkt_evt_nfl_2025_01_26_BUF_KC_winner",
+      "event_uid": "evt_nfl_2025_01_26_BUF_KC",
+      "title": "Will BUF win?",
       "type": "binary",
       "trading_status": "open",
       "currency": "USD",
       "tick_size": "0.0010",
-      "end_time": "2025-07-13T02:30:00Z",
+      "end_time": "2025-01-26T23:00:00Z",
       "outcomes": [
-        { "code": "YES", "token_id": "poly_token_yes" },
-        { "code": "NO",  "token_id": "poly_token_no"  }
+        { "code": "YES", "description": "BUF wins" },
+        { "code": "NO", "description": "BUF does not win" }
       ],
       "venue_ids": {
         "polymarket": {
-          "slug": "mlb-nyy-bos-2025-07-12",
-          "condition_id": "0xabc..."
+          "event_slug": "nfl-buf-kc-2025-01-26",
+          "market_id": "123456789"
         },
         "kalshi": {
-          "event_ticker": "KXMLBGAME-25JUL12NYYBOS"
+          "event_ticker": "KXNFLGAME-25JAN26BUFKC",
+          "market_ticker": "KXNFLGAME-25JAN26BUFKC-BUF"
         }
       },
-      "asof": "2025-10-06T19:20:11Z"
+      "asof": "2025-01-20T14:22:33Z"
     }
   ],
-  "next_cursor": "eyJpZCI6..."
+  "next_cursor": "eyJpZCI6MTIzNDU2fQ"
 }
 ```
 
-## Example Request
+## Field reference
 
-Get all open binary markets for an event:
+| Field | Type | Description |
+|-------|------|-------------|
+| `market_uid` | string | Canonical, stable market identifier |
+| `event_uid` | string | Canonical event ID this market belongs to |
+| `title` | string | Human-readable market question |
+| `type` | enum | Market type: `binary`, `multi`, or `numeric` |
+| `trading_status` | enum | Current trading status: `open`, `halted`, or `closed` |
+| `currency` | string | Settlement currency (typically `USD`) |
+| `tick_size` | string | Minimum price increment (e.g., `"0.0010"` = 0.1 cent) |
+| `end_time` | string (ISO-8601) | Scheduled market close time |
+| `outcomes` | array | Possible market outcomes. Each has `code` and optional `description`. |
+| `venue_ids` | object | Venue-native identifiers. Contains `polymarket` and `kalshi` objects. Empty object `{}` if market not available on a venue. Always present. |
+| `venue_ids.polymarket.event_slug` | string | Polymarket event slug. Omitted if not on Polymarket. |
+| `venue_ids.polymarket.market_id` | string | Polymarket market ID (numeric string). Omitted if not on Polymarket. |
+| `venue_ids.kalshi.event_ticker` | string | Kalshi event ticker. Omitted if not on Kalshi. |
+| `venue_ids.kalshi.market_ticker` | string | Kalshi market ticker (for specific outcome). Omitted if not on Kalshi. |
+| `asof` | string (ISO-8601) | Timestamp when this market data was captured. Changes when market details are updated. Use for cache invalidation. |
+| `next_cursor` | string \| null | Cursor for the next page. Returns `null` on the last page. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/markets?event_uid=evt_mlb_2025_07_12_NYY_BOS&type=binary&trading_status=open"
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+# 1) Get all markets for an event
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/markets?event_uid=evt_nfl_2025_01_26_BUF_KC"
+
+# 2) Get all open binary markets
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/markets?type=binary&trading_status=open&limit=100"
+
+# 3) Fetch multiple markets by canonical IDs (array syntax)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/markets?market_uid[]=mkt_1&market_uid[]=mkt_2"
+
+# Alternative: repeated parameter syntax (same result)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/markets?market_uid=mkt_1&market_uid=mkt_2"
+
+# 4) Pagination loop: fetch all open binary markets
+cursor=""
+while true; do
+  response=$(curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+    "https://api.predexon.com/v1/markets?type=binary&trading_status=open&limit=100${cursor:+&cursor=$cursor}")
+
+  # Process markets
+  echo "$response" | jq '.markets[]'
+
+  # Get next cursor
+  cursor=$(echo "$response" | jq -r '.next_cursor')
+
+  # Exit if no more pages
+  if [ "$cursor" = "null" ]; then break; fi
+done
 ```
 
-## Notes
+```javascript JavaScript
+// Node 18+ (fetch)
+const base = "https://api.predexon.com/v1";
+const headers = { Authorization: `Bearer ${process.env.PREDX_TOKEN}` };
 
-- **Lightweight response**: This endpoint returns essential market data. For detailed information (rules, fees, resolution details), use [Market Detail](/pages/discovery/market-detail).
-- **Outcomes**: Each outcome has a `code` (e.g., `YES`, `NO`) and may include a `token_id` for venue-specific token references.
-- **venue_ids**: Provides native identifiers for hopping to venue-specific systems.
-- **tick_size**: Minimum price increment as a string (e.g., `"0.0010"`).
+async function getEventMarkets(eventUid) {
+  const url = new URL(`${base}/markets`);
+  url.searchParams.set("event_uid", eventUid);
+  url.searchParams.set("trading_status", "open");
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  const data = await res.json();
+  return data.markets;
+}
+
+// Pagination loop: fetch all open binary markets
+async function getAllOpenBinaryMarkets() {
+  const allMarkets = [];
+  let cursor = null;
+
+  while (true) {
+    const url = new URL(`${base}/markets`);
+    url.searchParams.set("type", "binary");
+    url.searchParams.set("trading_status", "open");
+    url.searchParams.set("limit", "100");
+    if (cursor) url.searchParams.set("cursor", cursor);
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const data = await res.json();
+
+    allMarkets.push(...data.markets);
+    if (!data.next_cursor) break;
+    cursor = data.next_cursor;
+  }
+
+  return allMarkets;
+}
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"}
+
+def get_binary_markets():
+  params = {
+    "type": "binary",
+    "trading_status": "open",
+    "limit": 100
+  }
+  r = requests.get(f"{BASE}/markets", headers=HEADERS, params=params, timeout=30)
+  r.raise_for_status()
+  return r.json()["markets"]
+
+# Pagination loop: fetch all open binary markets
+def get_all_open_binary_markets():
+  all_markets = []
+  cursor = None
+
+  while True:
+    params = {"type": "binary", "trading_status": "open", "limit": 100}
+    if cursor:
+      params["cursor"] = cursor
+
+    r = requests.get(f"{BASE}/markets", headers=HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+
+    all_markets.extend(data["markets"])
+    cursor = data.get("next_cursor")
+    if not cursor:
+      break
+
+  return all_markets
+```
+
+```go Go
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+  "net/http"
+  "net/url"
+  "os"
+)
+
+func main() {
+  q := url.Values{}
+  q.Set("event_uid", "evt_nfl_2025_01_26_BUF_KC")
+
+  req, _ := http.NewRequest("GET", "https://api.predexon.com/v1/markets?"+q.Encode(), nil)
+  req.Header.Set("Authorization", "Bearer "+os.Getenv("PREDX_TOKEN"))
+
+  res, err := http.DefaultClient.Do(req)
+  if err != nil { panic(err) }
+  defer res.Body.Close()
+
+  var out struct {
+    Markets    []any  `json:"markets"`
+    NextCursor string `json:"next_cursor"`
+  }
+  json.NewDecoder(res.Body).Decode(&out)
+  fmt.Println("markets:", len(out.Markets))
+}
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "type must be one of: binary, multi, numeric",
+    "param": "type"
+  }
+}
+```
+
+### Error Types
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Parameter validation failed | Invalid enum value, malformed array syntax, invalid ID format |
+| `400` | `invalid_cursor` | Pagination cursor is invalid or expired | Cursor is malformed, expired (>24h), or from different query |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token doesn't have access to Discovery API |
+| `404` | `not_found` | Resource doesn't exist | Invalid `market_uid` or endpoint path |
+| `422` | `too_many_values` | Array parameter exceeds limit | More than 50 values in array parameter |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 requests/minute. Check `Retry-After` header. |
+| `500` | `internal_error` | Server error | Contact support@predexon.com with request ID |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+**Empty results** return HTTP 200 with empty array:
+
+```json
+{
+  "markets": [],
+  "next_cursor": null
+}
+```
+
+See [Errors & Status Codes](/support/errors) for full list and remediation tips.
+
+## Best practices
+
+1. **Event-based queries:** Use `event_uid` to get all markets for an event, then filter locally by `type` or `trading_status`.
+
+2. **Market lookups:** Store `market_uid` from responses for direct lookups later.
+
+3. **Cursor loops:** Continue until `next_cursor` is absent.
+
+4. **Access venue APIs:** Extract `venue_ids.polymarket` or `venue_ids.kalshi` to call venue-specific endpoints for orderbooks or trade execution.
+
+5. **Caching:** Cache by querystring and invalidate when `asof` changes.
 
 ## Related
 
-- [Market Detail](/pages/discovery/market-detail) - Get full market details including rules and fees
 - [List Events](/pages/discovery/events) - Get events to find their markets
+- [Market Detail](/pages/discovery/market-detail) - Get full market details including rules and fees
+- [Matching Markets](/pages/discovery/matching) - Map venue selectors to canonical IDs
