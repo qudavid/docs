@@ -5,29 +5,19 @@ description: Outcome-level OHLCV bars and per-outcome tick data with cursor pagi
 
 # Historical Time Series
 
-Query normalized OHLCV candles per market and tick-level price series per outcome token, aligned to UTC with cursor pagination.
+Use Predexon Time Series endpoints to fetch normalized OHLCV candles and per-venue tick data aligned to canonical market IDs.
 
 ## Base URLs
 
-- **REST**: `https://api.predexon.com/v1`
+- **REST:** `https://api.predexon.com/v1`
 
 ## Conventions
 
-For complete conventions (time format, numeric precision, pagination, IDs, authentication, error handling), see the [Discovery API Overview](/pages/discovery/overview).
+For authentication, ID formats, numeric precision, and general pagination guidance, see the [Discovery API Overview](/pages/discovery/overview). Time Series endpoints extend those conventions with:
 
-### Bar Specifications
-
-- **Alignment**: Consistent `bar_spec` with alignment and boundary rules
-- **UTC timestamps**: All bars aligned to UTC boundaries
-- **Pagination**: Use `next_cursor` for long time ranges
-
-## Endpoints Covered
-
-### Candles (OHLCV)
-**GET /v1/candles/{market_uid}** - Outcome-level OHLCV bars with VWAP, volume, and open interest
-
-### Price Series (Ticks)
-**GET /v1/price-series/{token_id}** - Per-outcome tick data for fine-grained analysis
+- **UTC alignment:** All bars and ticks are aligned to UTC timestamps.
+- **Cursor pagination:** Both candles and tick endpoints return `next_cursor` values for large exports.
+- **Per-venue data:** Responses provide separate blocks per venue when a market is listed in multiple venues.
 
 ## Endpoints
 
@@ -39,3 +29,15 @@ For complete conventions (time format, numeric precision, pagination, IDs, authe
     GET /v1/price-series/{token_id}
   </Card>
 </CardGroup>
+
+## Workflow
+
+1. **Resolve selectors:** Use [Resolve Selectors](/pages/discovery/resolve) to get the canonical `market_uid` and venue tokens.
+2. **Fetch candles:** Pull OHLCV via `/v1/candles/{market_uid}` with appropriate intervals.
+3. **Fetch tick data:** Request per-venue ticks via `/v1/price-series/{token_id}` for fine-grained analytics.
+4. **Combine with Live Data:** Seed historical views, then update using [Stream Quotes](/pages/live-data/stream-quotes).
+
+## Related
+
+- [Discovery Overview](/pages/discovery/overview)
+- [Live Data API](/pages/live-data/overview)

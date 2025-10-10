@@ -1,38 +1,46 @@
 ---
 title: Price Series (Ticks)
-description: GET /v1/price-series/{token_id} returns per-outcome tick data with cursor pagination.
+description: GET /v1/price-series/{token_id} returns per-venue tick data with cursor pagination.
 ---
 
 # Price Series (Ticks)
 
-```
+> **GET `/v1/price-series/{token_id}`** — Retrieve per-venue tick data for an outcome token with cursor pagination.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601**
+- **Rate Limits:** 40 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/price-series/{token_id}
 ```
 
-Fine-grained tick data for a single outcome token.
-
-## Path Parameters
+## Path parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `token_id` | string | Venue outcome token identifier |
+| `token_id` | string | Venue-specific outcome token identifier. Required. |
 
-## Query Parameters
+## Query parameters
 
 All parameters are optional.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `start` | string | Start time filter (ISO-8601 UTC timestamp) |
-| `end` | string | End time filter (ISO-8601 UTC timestamp) |
-| `limit` | integer | Results per page (default: 1000, max: 10000) |
-| `cursor` | string | Opaque cursor from previous `next_cursor` |
+| `start` | string | Inclusive start timestamp filter (`ISO-8601`). |
+| `end` | string | Exclusive end timestamp filter (`ISO-8601`). |
+| `limit` | integer | Ticks per page (default 1000, max 10000). |
+| `cursor` | string | Opaque cursor returned in `next_cursor`. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
   "token_id": "2174263314...38836455",
+  "venue": "polymarket",
   "series": [
     { "ts": "2025-03-14T14:01:02.120Z", "price": "0.604" },
     { "ts": "2025-03-14T14:01:07.003Z", "price": "0.607" }
@@ -41,33 +49,105 @@ All parameters are optional.
 }
 ```
 
-## Example Request
+## Field reference
 
-Get tick data for ETH outcome token:
+| Field | Type | Description |
+|-------|------|-------------|
+| `token_id` | string | Venue-specific outcome token identifier. |
+| `venue` | string | Venue code (`polymarket`, `kalshi`) for this tick stream. |
+| `series` | array | Array of ticks ordered newest first. |
+| `series[].ts` | string (ISO-8601) | Tick timestamp. |
+| `series[].price` | string | Trade price at that tick. |
+| `next_cursor` | string \| null | Cursor for the next page (`null` when no more results). |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/price-series/2174263314...38836455?start=2025-03-14T14:00:00Z&end=2025-03-14T15:00:00Z&limit=2000"
+<Info>
+**Usage tips**
+
+- Tick data is per venue; request both venue tokens when you need cross-venue comparisons.
+- Combine `start`/`end` with cursor pagination to manage response sizes.
+- Obtain `token_id` values from [Market Detail](/pages/discovery/market-detail) (`outcomes[].token_id`) or the venue's native APIs.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/price-series/2174263314...38836455?start=2025-03-14T14:00:00Z&end=2025-03-14T15:00:00Z&limit=2000" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `token_id` | Venue-specific outcome token identifier |
-| `series` | Array of price ticks |
-| `series[].ts` | Tick timestamp (ISO-8601 UTC) |
-| `series[].price` | Price at this tick as string |
-| `next_cursor` | Cursor for next page (if more results exist) |
+async function listTicks(tokenId, params = {}) {
+  const url = new URL(`${base}/price-series/${tokenId}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
 
-## Notes
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-- **Fine-grained data**: Use price-series for model training, backtesting, or custom bar aggregation.
-- **Per-outcome**: For multi-outcome markets, request each token separately.
-- **Token IDs**: Obtain token IDs from the [Market Detail](/pages/discovery/market-detail) endpoint's `outcomes` array.
-- **High volume**: Tick data can be voluminous. Use time filters and pagination to manage response sizes.
+```python Python
+import os
+import requests
+
+def list_ticks(token_id: str, **params) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/price-series/{token_id}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      params=params,
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(list_ticks(
+    "2174263314...38836455",
+    start="2025-03-14T14:00:00Z",
+    end="2025-03-14T15:00:00Z",
+    limit=2000,
+))
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "start must be <= end",
+    "param": "start"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Invalid timestamp range, limit > 10000 |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token not provisioned for Time Series |
+| `404` | `not_found` | Resource not found | Unknown `token_id` |
+| `422` | `invalid_cursor` | Cursor malformed or expired | Cursor from different query or >24h old |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded key limit |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Batch sensibly:** Use larger limits (up to 10k) but page with cursors for very long windows.
+2. **Normalize prices:** Convert price strings to decimals before analytics to avoid floating-point drift.
+3. **Track venue context:** Store `venue` with each tick for downstream attribution.
+4. **Use incremental pulls:** Combine `start` filters with stored cursors to fetch only new ticks.
 
 ## Related
 
-- [Candles (OHLCV)](/pages/time-series/candles) - Pre-aggregated bars
-- [Market Detail](/pages/discovery/market-detail) - Get token IDs for outcomes
+- [Candles (OHLCV)](/pages/time-series/candles) — Pre-aggregated bars per venue
+- [Market Detail](/pages/discovery/market-detail) — Outcome metadata and token IDs
+- [Discovery Overview](/pages/discovery/overview) — Canonical ID conventions

@@ -1,39 +1,46 @@
 ---
 title: Candles (OHLCV)
-description: GET /v1/candles/{market_uid} returns per-outcome OHLCV bars with VWAP, volume, and open interest.
+description: GET /v1/candles/{market_uid} returns per-venue OHLCV bars with VWAP, volume, and open interest.
 ---
 
 # Candles (OHLCV)
 
-```
+> **GET `/v1/candles/{market_uid}`** — Retrieve outcome-level OHLCV bars over configurable intervals, with per-venue VWAP, volume, and open interest.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601**
+- **Rate Limits:** 40 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/candles/{market_uid}
 ```
 
-Outcome-level OHLCV per bar with VWAP, volume, and open interest.
-
-## Path Parameters
+## Path parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `market_uid` | string | Canonical market identifier |
+| `market_uid` | string | Canonical market identifier. Required. |
 
-## Query Parameters
+## Query parameters
 
 All parameters are optional.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `interval` | enum | Bar interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d` |
-| `start` | string | Start time filter (ISO-8601 UTC timestamp) |
-| `end` | string | End time filter (ISO-8601 UTC timestamp) |
-| `limit` | integer | Results per page (default: 500, max: 5000) |
-| `cursor` | string | Opaque cursor from previous `next_cursor` |
+| `interval` | enum | Bar interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d`. Default `5m`. |
+| `start` | string | Inclusive start timestamp filter (`ISO-8601`). |
+| `end` | string | Exclusive end timestamp filter (`ISO-8601`). |
+| `limit` | integer | Bars per page (default 500, max 5000). |
+| `cursor` | string | Opaque cursor returned in `next_cursor`. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
-  "market_uid": "mkt_evt_mlb_2025_06_24_NYY_BOS_yesno",
+  "market_uid": "mkt_evt_mlb_2025_06_24_NYY_BOS_winner_nyy",
   "interval": "5m",
   "bar_spec": {
     "timezone": "UTC",
@@ -41,64 +48,157 @@ All parameters are optional.
     "boundary": "calendar",
     "fields": ["open", "high", "low", "close", "vwap", "volume", "oi"]
   },
-  "candles": [
-    {
-      "ts": "2025-06-24T23:10:00Z",
-      "YES": {
-        "open": "0.522",
-        "high": "0.534",
-        "low": "0.515",
-        "close": "0.529",
-        "vwap": "0.526",
-        "volume": "9800",
-        "oi": "184300"
-      },
-      "NO": {
-        "open": "0.478",
-        "high": "0.485",
-        "low": "0.466",
-        "close": "0.471",
-        "vwap": "0.474",
-        "volume": "9100",
-        "oi": "182050"
-      }
+  "venues": {
+    "polymarket": {
+      "market_slug": "mlb-nyy-bos-2025-06-24",
+      "candles": [
+        {
+          "ts": "2025-06-24T23:10:00Z",
+          "YES": {
+            "open": "0.522",
+            "high": "0.534",
+            "low": "0.515",
+            "close": "0.529",
+            "vwap": "0.526",
+            "volume": "9800",
+            "oi": "184300"
+          },
+          "NO": {
+            "open": "0.478",
+            "high": "0.485",
+            "low": "0.466",
+            "close": "0.471",
+            "vwap": "0.474",
+            "volume": "9100",
+            "oi": "182050"
+          }
+        }
+      ],
+      "next_cursor": "eyJ0cyI6MjAyNS0wNi0yNFQyMzoxNTowMFoifQ"
+    },
+    "kalshi": {
+      "market_ticker": "KXBASEBALL-25JUN24NYYBOS-NYY",
+      "candles": [],
+      "next_cursor": null
     }
-  ],
-  "next_cursor": "eyJpZCI6..."
+  }
 }
 ```
 
-## Example Request
+## Field reference
 
-Get 5-minute bars for MLB rivalry game:
+| Field | Type | Description |
+|-------|------|-------------|
+| `market_uid` | string | Canonical market identifier for the candle set. |
+| `interval` | string | Interval string applied to the request. |
+| `bar_spec` | object | Alignment and boundary metadata for each bar. |
+| `bar_spec.timezone` | string | Time zone for bar boundaries (`UTC`). |
+| `bar_spec.alignment` | string | Bar alignment semantics (`left_closed_right_open`). |
+| `bar_spec.boundary` | string | Boundary definition (`calendar`). |
+| `bar_spec.fields` | string[] | Fields present in each outcome object. |
+| `venues` | object | Map of venue code → venue-specific candle payload. |
+| `venues[*].market_slug` | string | Polymarket market slug (when applicable). |
+| `venues[*].market_ticker` | string | Kalshi market ticker (when applicable). |
+| `venues[*].candles` | array | Array of OHLCV bars for the venue (newest first). |
+| `venues[*].candles[].ts` | string (ISO-8601) | Bar start timestamp. |
+| `venues[*].candles[].<outcome>` | object | OHLCV metrics for a given outcome. |
+| `open` / `high` / `low` / `close` | string | Bar OHLC price values (decimal strings). |
+| `vwap` | string | Volume-weighted average price for the bar. |
+| `volume` | string | Total traded volume in the bar. |
+| `oi` | string | Open interest at the close of the bar. |
+| `venues[*].next_cursor` | string \| null | Cursor for pagination per venue. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/candles/mkt_evt_mlb_2025_06_24_NYY_BOS_yesno?interval=5m&start=2025-06-24T22:00:00Z&end=2025-06-25T02:00:00Z&limit=500"
+<Info>
+**Bar semantics**
+
+- Bars follow left-closed, right-open semantics in UTC (e.g., `23:10:00` includes trades from `23:10:00.000` up to but not including `23:15:00.000`).
+- `venues` only return entries where the market is listed; absent venues appear as `null`.
+- Bars are returned newest first. Use `cursor` for additional pages.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/candles/mkt_evt_mlb_2025_06_24_NYY_BOS_winner_nyy?interval=5m&start=2025-06-24T22:00:00Z&end=2025-06-25T02:00:00Z&limit=500" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `bar_spec` | Specification for bar alignment and boundaries |
-| `bar_spec.timezone` | Timezone for bar boundaries (always `UTC` in MVP) |
-| `bar_spec.alignment` | Bar alignment semantics (`left_closed_right_open`) |
-| `bar_spec.boundary` | Boundary type (`calendar` for standard intervals) |
-| `bar_spec.fields` | Fields included in each bar |
-| `candles` | Array of OHLCV bars |
-| `candles[].ts` | Bar timestamp (start of interval) |
-| `candles[outcome]` | OHLCV data per outcome |
-| `vwap` | Volume-weighted average price |
-| `oi` | Open interest at bar close |
+async function listCandles(marketUid, params = {}) {
+  const url = new URL(`${base}/candles/${marketUid}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
 
-## Notes
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-- **Bar semantics**: Bars follow left-closed, right-open semantics in UTC (e.g., `23:10:00` includes trades from `23:10:00.000` up to but not including `23:15:00.000`).
-- **Pagination**: Use `cursor` for long time ranges to avoid hitting response size limits.
-- **Per-outcome data**: Each outcome (YES, NO, etc.) has its own OHLCV data.
+```python Python
+import os
+import requests
+
+def list_candles(market_uid: str, **params) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/candles/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      params=params,
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(list_candles(
+    "mkt_evt_mlb_2025_06_24_NYY_BOS_winner_nyy",
+    interval="5m",
+    start="2025-06-24T22:00:00Z",
+    end="2025-06-25T02:00:00Z",
+    limit=500,
+))
+```
+
+</CodeGroup>
+
+Each venue returns its own candle series and cursor. Venues where the market is not listed are returned as `null`.
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "interval must be one of: 1m, 5m, 15m, 1h, 4h, 1d",
+    "param": "interval"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Unsupported interval, invalid timestamp |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token not provisioned for Time Series |
+| `404` | `not_found` | Resource not found | Unknown `market_uid` |
+| `422` | `invalid_cursor` | Cursor malformed or expired | Cursor from different query or >24h old |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded key limit |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Align to UTC:** Bar boundaries are UTC; convert to local time zones after fetching.
+2. **Use per-venue cursors:** Iterate using `venues[*].next_cursor` to avoid missing venue-specific history.
+3. **Backfill sparingly:** For large historical pulls, page backward via cursors instead of raising `limit` excessively.
+4. **Hydrate outcomes:** Use [Market Detail](/pages/discovery/market-detail) to map outcomes to meaning before charting.
 
 ## Related
 
-- [Price Series](/pages/time-series/price-series) - Tick-level data for custom aggregations
-- [Top-of-Book Quotes](/pages/live-data/quotes) - Current prices
+- [Price Series (Ticks)](/pages/time-series/price-series) — Sub-minute tick data per token
+- [Top-of-Book Quotes](/pages/live-data/quotes) — Live best bid/ask
+- [Stream Quotes](/pages/live-data/stream-quotes) — Real-time updates for intraday charts
