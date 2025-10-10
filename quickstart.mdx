@@ -7,73 +7,291 @@ seo:
 
 # Quickstart
 
-Get your first API calls working in 10 minutes.
+Spin up key REST calls in minutes. This guide shows how to resolve venue selectors, list canonical markets, and pull live pricing data using consistent canonical IDs.
 
 ## Prerequisites
 
-- API key (contact us for access)
-- Base URL: `https://api.predexon.com`
-- curl, Node.js, or Python environment
+- Predexon API key (contact support@predexon.com)
+- Base REST URL: `https://api.predexon.com/v1`
+- WebSocket URL: `wss://stream.predexon.com/v1`
+- Environment with curl, Node.js 18+, or Python 3.10+
 
-## Step 1: Resolve native IDs
+We’ll use Polymarket and Kalshi selectors for the July 12, 2025 Yankees vs Red Sox game as a concrete example.
 
-Map venue-specific identifiers to canonical `market_uid` values.
+## Step 1: Resolve venue selectors to canonical IDs
 
-```bash
-curl -X POST https://api.predexon.com/v1/resolve \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+Use the Discovery Resolve endpoint to convert venue-native selectors into canonical IDs.
+
+<CodeGroup>
+
+```bash cURL
+curl -s -X POST "https://api.predexon.com/v1/resolve" \
+  -H "Authorization: Bearer $PREDX_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"venue": "polymarket", "slug": "will-biden-win-2024"}'
+  -d '{
+    "selectors": [
+      {"venue": "polymarket", "market_slug": "will-yankees-win"},
+      {"venue": "kalshi", "market_ticker": "KXMLBNYY-25JUL12"}
+    ]
+  }'
 ```
 
-Response structure and examples will be documented here.
+```javascript JavaScript (resolve)
+const base = "https://api.predexon.com/v1";
+const headers = {
+  Authorization: `Bearer ${process.env.PREDX_TOKEN}`,
+  "Content-Type": "application/json",
+};
 
-## Step 2: List markets
+async function resolveSelectors() {
+  const body = {
+    selectors: [
+      { venue: "polymarket", market_slug: "will-yankees-win" },
+      { venue: "kalshi", market_ticker: "KXMLBNYY-25JUL12" },
+    ],
+  };
 
-Fetch all markets for an event.
+  const res = await fetch(`${base}/resolve`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python (resolve)
+import os
+import requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ['PREDX_TOKEN']}",
+    "Content-Type": "application/json",
+}
+
+payload = {
+    "selectors": [
+        {"venue": "polymarket", "market_slug": "will-yankees-win"},
+        {"venue": "kalshi", "market_ticker": "KXMLBNYY-25JUL12"},
+    ]
+}
+
+res = requests.post(f"{BASE}/resolve", headers=HEADERS, json=payload, timeout=30)
+res.raise_for_status()
+print(res.json())
+```
+
+</CodeGroup>
+
+Response (abridged):
+
+```json
+{
+  "results": [
+    {
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy",
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    }
+  ]
+}
+```
+
+Store `market_uid` and `event_uid`—you’ll reuse them in later steps. See [Resolve Selectors](/pages/discovery/resolve) for full schema and batching tips.
+
+## Step 2: List canonical markets for the event
+
+Use the `event_uid` from Step 1 to pull normalized markets.
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/markets?event_uid=evt_mlb_2025_07_12_NYY_BOS" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
+```
+
+```javascript JavaScript (markets)
+const base = "https://api.predexon.com/v1";
+
+async function listMarkets(eventUid) {
+  const url = new URL(`${base}/markets`);
+  url.searchParams.set("event_uid", eventUid);
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python (markets)
+import os
+import requests
+
+def list_markets(event_uid: str) -> dict:
+  res = requests.get(
+      "https://api.predexon.com/v1/markets",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      params={"event_uid": event_uid},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(list_markets("evt_mlb_2025_07_12_NYY_BOS"))
+```
+
+</CodeGroup>
+
+## Step 3: Fetch market detail (rules, fees, outcomes)
+
+Hydrate a market before integrating with venue APIs.
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/markets/mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
+```
+
+```javascript JavaScript (detail)
+async function getMarketDetail(marketUid) {
+  const res = await fetch(
+    `https://api.predexon.com/v1/markets/${marketUid}`,
+    { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } }
+  );
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python (detail)
+import os
+import requests
+
+def get_market_detail(market_uid: str) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/markets/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_market_detail("mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy"))
+```
+
+</CodeGroup>
+
+## Step 4: Pull quotes
+
+Switch to the Live Data API to retrieve top-of-book pricing.
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/quotes/mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
+```
+
+```javascript JavaScript (quotes)
+async function getQuote(marketUid) {
+  const res = await fetch(
+    `https://api.predexon.com/v1/quotes/${marketUid}`,
+    { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } }
+  );
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python (quotes)
+import os
+import requests
+
+def get_quote(market_uid: str) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/quotes/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_quote("mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy"))
+```
+
+</CodeGroup>
+
+## Step 5 (Optional): Order book snapshot
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/orderbook/mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
+```
+
+```javascript JavaScript (order book)
+async function getOrderBook(marketUid) {
+  const res = await fetch(
+    `https://api.predexon.com/v1/orderbook/${marketUid}`,
+    { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } }
+  );
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python (order book)
+import os
+import requests
+
+def get_orderbook(market_uid: str) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/orderbook/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_orderbook("mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy"))
+```
+
+</CodeGroup>
+
+## Step 6 (Optional): Live quotes over WebSocket
 
 ```bash
-curl https://api.predexon.com/v1/markets?event_uid=EVENT_UID \
-  -H "Authorization: Bearer YOUR_API_KEY"
+wscat -c "wss://stream.predexon.com/v1/quotes" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Step 3: Fetch quotes
+After connecting, subscribe to the market:
 
-Get the current best bid/ask/last for a market.
-
-```bash
-curl https://api.predexon.com/v1/quotes/MARKET_UID \
-  -H "Authorization: Bearer YOUR_API_KEY"
+```json
+{"action":"subscribe","market_uids":["mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy"]}
 ```
 
-## Step 4 (Optional): Order book snapshot
-
-Retrieve L2 order book depth.
-
-```bash
-curl https://api.predexon.com/v1/orderbook/MARKET_UID \
-  -H "Authorization: Bearer YOUR_API_KEY"
-```
-
-## Step 5 (Optional): Live quotes via WebSocket
-
-Connect to the real-time quote stream.
-
-WebSocket connection examples will be documented here.
+See [Live Data Streams](/pages/live-data/stream-quotes) for full message formats and authentication details.
 
 ## Troubleshooting
 
-- **Rate limits**: See [Authentication](/auth) for rate limit details
-- **Pagination**: Use `next_cursor` for paginated responses
-- **401/403/429 errors**: Check API key and rate limits in [Errors](/support/errors)
+- **401 / 403** – Confirm your API key and token scope
+- **429** – Respect per-key rate limits (100 req/min). Use exponential backoff
+- **Pagination** – Follow `next_cursor` links on list responses
+- **Field reference** – Consult the Discovery and Live Data docs linked above
 
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Concepts" icon="lightbulb" href="/concepts/canonical-ids">
-    Learn about canonical IDs and matching
+  <Card title="Discovery API" icon="magnifying-glass" href="/pages/discovery/overview">
+    Learn more about canonical IDs and selectors
   </Card>
-  <Card title="API Reference" icon="code" href="/reference/events">
-    Explore all endpoints
+  <Card title="Live Data" icon="chart-line" href="/pages/live-data/overview">
+    Explore quotes, trades, and order books
   </Card>
 </CardGroup>
