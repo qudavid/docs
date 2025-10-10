@@ -9,7 +9,7 @@ description: GET /v1/matching/markets maps venue-native selectors or event_uid t
 GET /v1/matching/markets
 ```
 
-Convert venue-native selectors (Polymarket slug, Kalshi ticker) or `event_uid` to canonical `market_uid` with confidence scores.
+Convert venue-native selectors (Polymarket slugs, Kalshi tickers) or `event_uid` to canonical `market_uid` with confidence scores.
 
 ## Query Parameters
 
@@ -17,7 +17,8 @@ Provide at least one of the following:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `polymarket_slug[]` | string | Polymarket slug (repeatable) |
+| `polymarket_event_slug[]` | string | Polymarket event slug (repeatable) |
+| `polymarket_market_slug[]` | string | Polymarket market slug (repeatable) |
 | `kalshi_ticker[]` | string | Kalshi ticker (repeatable) |
 | `event_uid` | string | Canonical event identifier |
 
@@ -46,12 +47,12 @@ Provide at least one of the following:
 
 ## Example Request
 
-Map two Polymarket slugs to canonical markets:
+Map two Polymarket event slugs to canonical markets:
 
 ```bash
 curl -s -G -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode "polymarket_slug=mlb-nyy-bos-2025-07-12" \
-  --data-urlencode "polymarket_slug=mlb-lad-sf-2025-07-12" \
+  --data-urlencode "polymarket_event_slug=mlb-nyy-bos-2025-07-12" \
+  --data-urlencode "polymarket_event_slug=mlb-lad-sf-2025-07-12" \
   "https://api.predexon.com/v1/matching/markets"
 ```
 
@@ -59,7 +60,7 @@ curl -s -G -H "Authorization: Bearer $TOKEN" \
 
 - **Multiple candidates**: When matching is ambiguous, multiple results may be returned. Use the `confidence` score to choose the best match or filter further.
 - **Confidence**: A score between 0 and 1 indicating match quality. Higher is better.
-- **Repeatable parameters**: Use array notation (`polymarket_slug[]`) to match multiple slugs in one request.
+- **Repeatable parameters**: Use array notation (`polymarket_event_slug[]`, `polymarket_market_slug[]`) to match multiple slugs in one request.
 
 ## Related
 

@@ -36,8 +36,8 @@ All are optional unless noted.
 | `type` | enum | `binary` \| `multi` \| `numeric`. Filter by market type. |
 | `trading_status` | enum | `open` \| `halted` \| `closed`. Filter by current trading status. |
 | `venue` | enum | `polymarket` \| `kalshi`. Returns markets available on the specified venue. |
-| `polymarket_slug[]` | string[] | Polymarket event slug (from events' `venue_ids.polymarket[]`). Format: lowercase-hyphenated. Repeatable. |
-| `polymarket_market_id[]` | string[] | Polymarket market ID. Format: numeric string (e.g., `123456789`). Repeatable. |
+| `polymarket_event_slug[]` | string[] | Polymarket event slug. Use to get all markets for a Polymarket event. Format: lowercase-hyphenated. Repeatable. |
+| `polymarket_market_slug[]` | string[] | Polymarket market slug. Found in Polymarket URLs. Format: lowercase-hyphenated. Repeatable. |
 | `kalshi_event_ticker[]` | string[] | Kalshi event ticker (from events' `venue_ids.kalshi[]`). Format: uppercase alphanumeric. Repeatable. |
 | `limit` | integer | Results per page. Default: 50, max: 200. |
 | `cursor` | string | Opaque pagination cursor from previous response's `next_cursor`. |
@@ -48,7 +48,7 @@ All are optional unless noted.
 - **No parameters:** Returns all markets (paginated), ordered by `end_time` descending, then by `market_uid` ascending.
 - **Multiple parameters:** Combined with AND logic. Example: `event_uid=evt_1&type=binary` returns binary markets for that event only.
 - **Array parameters:** OR logic within the array. Example: `market_uid[]=mkt_1&market_uid[]=mkt_2` returns both markets. Maximum 50 values per array parameter.
-- **Venue selectors:** `market_uid[]`, `polymarket_market_id[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_market_id=123&kalshi_event_ticker=TICKER1` returns markets matching either selector. Results are deduplicated by `market_uid` (if multiple selectors resolve to the same market, it appears once).
+- **Venue selectors:** `market_uid[]`, `polymarket_event_slug[]`, `polymarket_market_slug[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_market_slug=will-buf-win&kalshi_event_ticker=TICKER1` returns markets matching either selector. Results are deduplicated by `market_uid` (if multiple selectors resolve to the same market, it appears once).
 - **Pagination stability:** Results are ordered consistently across pages. The same query will return the same ordering unless data changes.
 </Info>
 
@@ -57,7 +57,7 @@ All are optional unless noted.
 
 - **event_uid:** From [List Events](/pages/discovery/events) responses.
 - **market_uid:** Returned in all market responses. Store these for lookups.
-- **Polymarket slugs/IDs:** Get from Polymarket's API or from events' `venue_ids.polymarket[]`.
+- **Polymarket slugs:** Event slugs from events' `venue_ids.polymarket[]`. Market slugs found in Polymarket URLs or their API responses.
 - **Kalshi tickers:** Get from Kalshi's API or from events' `venue_ids.kalshi[]`.
 
 **Common pattern:** Call List Events to get `event_uid`, then use it here to get all markets for that event.
@@ -84,7 +84,7 @@ All are optional unless noted.
       "venue_ids": {
         "polymarket": {
           "event_slug": "nfl-buf-kc-2025-01-26",
-          "market_id": "123456789"
+          "market_slug": "will-buf-win"
         },
         "kalshi": {
           "event_ticker": "KXNFLGAME-25JAN26BUFKC",
@@ -113,7 +113,7 @@ All are optional unless noted.
 | `outcomes` | array | Possible market outcomes. Each has `code` and optional `description`. |
 | `venue_ids` | object | Venue-native identifiers. Contains `polymarket` and `kalshi` objects. Empty object `{}` if market not available on a venue. Always present. |
 | `venue_ids.polymarket.event_slug` | string | Polymarket event slug. Omitted if not on Polymarket. |
-| `venue_ids.polymarket.market_id` | string | Polymarket market ID (numeric string). Omitted if not on Polymarket. |
+| `venue_ids.polymarket.market_slug` | string | Polymarket market slug. Human-readable, found in URLs. Omitted if not on Polymarket. |
 | `venue_ids.kalshi.event_ticker` | string | Kalshi event ticker. Omitted if not on Kalshi. |
 | `venue_ids.kalshi.market_ticker` | string | Kalshi market ticker (for specific outcome). Omitted if not on Kalshi. |
 | `asof` | string (ISO-8601) | Timestamp when this market data was captured. Changes when market details are updated. Use for cache invalidation. |
@@ -139,6 +139,10 @@ curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
 # Alternative: repeated parameter syntax (same result)
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/markets?market_uid=mkt_1&market_uid=mkt_2"
+
+# 3b) Look up market by Polymarket slug (from URL)
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
+  "https://api.predexon.com/v1/markets?polymarket_market_slug=will-buf-win"
 
 # 4) Pagination loop: fetch all open binary markets
 cursor=""

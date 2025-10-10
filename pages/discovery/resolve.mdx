@@ -16,7 +16,7 @@ Bulk resolve any mix of selectors (Polymarket slugs, Kalshi tickers, canonical I
 ```json
 {
   "selectors": [
-    { "venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3" },
+    { "venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3" },
     { "venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
     { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno" }
   ]
@@ -27,9 +27,14 @@ Bulk resolve any mix of selectors (Polymarket slugs, Kalshi tickers, canonical I
 
 Each selector can be one of:
 
-**Polymarket selector:**
+**Polymarket event selector:**
 ```json
-{ "venue": "POLYMARKET", "slug": "..." }
+{ "venue": "POLYMARKET", "event_slug": "..." }
+```
+
+**Polymarket market selector:**
+```json
+{ "venue": "POLYMARKET", "market_slug": "..." }
 ```
 
 **Kalshi selector:**
@@ -48,7 +53,7 @@ Each selector can be one of:
 {
   "results": [
     {
-      "input": { "venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3" },
+      "input": { "venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3" },
       "market_uid": "mkt_evt_cpi_2025_10_14_YoY_above_3",
       "event_uid": "evt_macro_2025_10_14_US_CPI"
     },
@@ -75,7 +80,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "selectors": [
-      {"venue": "POLYMARKET", "slug": "us-cpi-oct-2025-above-3"},
+      {"venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3"},
       {"venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS"},
       {"market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno"}
     ]

@@ -21,7 +21,7 @@ Discovery standardizes differences between venues:
 |--------|------------------|----------------|
 | **Market types** | Venue-specific `marketType` field values | Consistent `type: "binary"`, `"multi"`, or `"numeric"` |
 | **Status representation** | Polymarket: boolean flags (`active`, `closed`), Kalshi: string `status` | Consistent `trading_status: "open"`, `"halted"`, or `"closed"` |
-| **Field names** | Polymarket: event `slug`, market `id`; Kalshi: `event_ticker`, `ticker` | Unified field structure with `venue_ids{}` |
+| **Field names** | Polymarket: event `slug`, market `slug`; Kalshi: `event_ticker`, `ticker` | Unified field structure with `venue_ids{}` |
 | **Price formats** | Kalshi: both integers and dollar strings, Polymarket: mixed | Always string decimals (`"0.5500"`) |
 
 ## Understanding IDs
@@ -43,7 +43,7 @@ Predexon creates and maintains **canonical IDs** to represent the same real-worl
 | ID Type | Value | Where It's Used |
 |---------|-------|-----------------|
 | **Canonical Market ID** (Predexon) | `mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy` | Predexon Discovery API |
-| **Polymarket Market ID** | `123456789` | Polymarket API |
+| **Polymarket Market Slug** | `will-yankees-win` | Polymarket API |
 | **Kalshi Series Ticker** | `KXMLBNYY-25JUL12` | Kalshi API |
 
 ### Why Two ID Systems?

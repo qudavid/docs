@@ -37,7 +37,7 @@ All are optional unless noted.
 | `participant` | string | Participant identifier returned in event `participants[]` array. Case-insensitive substring match. Examples: `NYY`, `BOS`, `TRUMP`. |
 | `event_uid[]` | string[] | Fetch specific events by canonical ID. Repeatable. Use when you already have event IDs from a previous call. |
 | `venue` | enum | `polymarket` \| `kalshi`. Returns events that exist on the specified venue (have entries in `venue_ids`). |
-| `polymarket_slug[]` | string[] | Polymarket event slug (from `venue_ids.polymarket[]`). Format: lowercase-hyphenated (e.g., `nfl-buf-kc-2025-01-26`). Repeatable. |
+| `polymarket_event_slug[]` | string[] | Polymarket event slug (from `venue_ids.polymarket[]`). Format: lowercase-hyphenated (e.g., `nfl-buf-kc-2025-01-26`). Repeatable. |
 | `kalshi_event_ticker[]` | string[] | Kalshi event ticker (from `venue_ids.kalshi[]`). Format: uppercase alphanumeric (e.g., `KXNFLGAME-25JAN26BUFKC`). Repeatable. |
 | `limit` | integer | Results per page. Default: 50, max: 200. |
 | `cursor` | string | Opaque pagination cursor from previous response's `next_cursor`. |
@@ -48,7 +48,7 @@ All are optional unless noted.
 - **No parameters:** Returns all events (paginated), ordered by `scheduled_start` descending, then by `event_uid` ascending for same-timestamp events.
 - **Multiple parameters:** Combined with AND logic. Example: `category=sports&date=2025-07-12` returns sports events on that date only.
 - **Array parameters:** OR logic within the array. Example: `event_uid[]=evt_1&event_uid[]=evt_2` returns both events. Maximum 50 values per array parameter.
-- **Venue selectors:** `event_uid[]`, `polymarket_slug[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_slug=slug1&kalshi_event_ticker=ticker1` returns events matching either selector. Results are deduplicated by `event_uid` (if multiple selectors resolve to the same event, it appears once).
+- **Venue selectors:** `event_uid[]`, `polymarket_event_slug[]`, and `kalshi_event_ticker[]` are combined with OR logic across parameter types. Example: `polymarket_event_slug=slug1&kalshi_event_ticker=ticker1` returns events matching either selector. Results are deduplicated by `event_uid` (if multiple selectors resolve to the same event, it appears once).
 - **Participant search:** Case-insensitive substring match. `participant=LA` matches `LAL`, `LAC`, `LAD`. Matches anywhere in participant code.
 - **Pagination stability:** Results are ordered consistently across pages. The same query will return the same ordering unless data changes.
 </Info>
@@ -57,8 +57,8 @@ All are optional unless noted.
 **Where do IDs come from?**
 
 - **Categories & participants:** Returned in event responses. Use List Events to discover available values, then filter by them.
-- **Polymarket slugs:** Get from Polymarket's `/events` API or from previous Discovery API calls in `venue_ids.polymarket[]`.
-- **Kalshi tickers:** Get from Kalshi's `/events` API or from previous Discovery API calls in `venue_ids.kalshi[]`.
+- **Polymarket event slugs:** Get from Polymarket's `/events` API or from previous Discovery API calls in `venue_ids.polymarket[]`.
+- **Kalshi event tickers:** Get from Kalshi's `/events` API or from previous Discovery API calls in `venue_ids.kalshi[]`.
 - **event_uid:** Returned in all Discovery API responses. Store these for lookups.
 
 **Common pattern:** Call List Events with broad filters (`category` + `date`), then use returned `event_uid` or `venue_ids` for subsequent specific queries.
@@ -124,10 +124,10 @@ curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/events?event_uid=evt_mlb_2025_07_12_NYY_BOS&event_uid=evt_mlb_2025_07_12_LAD_SF"
 
-# 3b) Mix venue selectors (Polymarket slug + Kalshi ticker)
+# 3b) Mix venue selectors (Polymarket event slug + Kalshi event ticker)
 # Returns events matching either selector, deduplicated by event_uid
 curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
-  "https://api.predexon.com/v1/events?polymarket_slug=mlb-nyy-bos-2025-07-12&kalshi_event_ticker=KXNFLGAME-25JUL13LADSFG"
+  "https://api.predexon.com/v1/events?polymarket_event_slug=mlb-nyy-bos-2025-07-12&kalshi_event_ticker=KXNFLGAME-25JUL13LADSFG"
 
 # 4) Pagination loop: fetch all pages
 cursor=""
