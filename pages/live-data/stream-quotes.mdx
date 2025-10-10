@@ -5,34 +5,84 @@ description: WS /v1/stream/quotes pushes best bid/ask/last snapshots and deltas 
 
 # Stream Quotes
 
-```
-WS /v1/stream/quotes
+> **WS `/v1/stream/quotes`** — Subscribe to top-of-book snapshots followed by deltas for one or more markets.
+
+- **WebSocket URL:** `wss://stream.predexon.com/v1/stream/quotes`
+- **Auth:** `Authorization: Bearer <token>` header on the WebSocket handshake
+- **Time:** All timestamps in messages are **UTC ISO-8601**
+- **Rate Limits:** Limit concurrent connections per key; excessive resubscriptions may be throttled with `429` close codes.
+
+## Connect
+
+Send the API token during the WebSocket handshake.
+
+<CodeGroup>
+
+```bash cURL
+wscat -c "wss://stream.predexon.com/v1/stream/quotes" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-Subscribe to quote snapshots and subsequent deltas for one or more markets.
+```javascript JavaScript
+import WebSocket from "ws";
 
-## Connection
+const socket = new WebSocket("wss://stream.predexon.com/v1/stream/quotes", {
+  headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+});
 
+socket.on("open", () => {
+  socket.send(JSON.stringify({
+    action: "subscribe",
+    markets: ["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"],
+    venue: "polymarket",
+  }));
+});
 ```
-wss://stream.predexon.com/v1/stream/quotes
+
+```python Python
+import json
+import os
+import websocket
+
+ws = websocket.WebSocket()
+ws.connect(
+    "wss://stream.predexon.com/v1/stream/quotes",
+    header=[f"Authorization: Bearer {os.environ['PREDX_TOKEN']}"]
+)
+ws.send(json.dumps({
+    "action": "subscribe",
+    "markets": ["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"],
+    "venue": "polymarket"
+}))
+print(ws.recv())
 ```
 
-## Subscribe Payload
+</CodeGroup>
+
+## Subscribe payload
 
 ```json
 {
   "action": "subscribe",
-  "markets": ["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"]
+  "markets": ["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"],
+  "venue": "polymarket",
+  "sequence": 104500
 }
 ```
 
-## Message Format
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | `"subscribe"` or `"unsubscribe"`. |
+| `markets` | string[] | List of `market_uid` values to stream. Required for subscribe. |
+| `venue` | string (optional) | Restrict updates to a single venue (e.g., `polymarket`, `kalshi`). Omit for all venues. |
+| `sequence` | integer (optional) | Resume from a specific sequence (>= snapshot sequence). |
 
-### Snapshot/Delta Message
+## Message schema
 
 ```json
 {
   "type": "quote",
+  "venue": "polymarket",
   "market_uid": "mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno",
   "sequence": 104520,
   "outcomes": {
@@ -55,37 +105,48 @@ wss://stream.predexon.com/v1/stream/quotes
 }
 ```
 
-## Example Test
+## Field reference
 
-Quick test with `wscat`:
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Message type. Always `"quote"`. |
+| `venue` | string | Venue code (`polymarket`, `kalshi`) for this update. |
+| `market_uid` | string | Market identifier associated with the update. |
+| `sequence` | integer | Monotonic sequence number; use to order messages and detect gaps. |
+| `outcomes` | object | Best bid/ask per outcome after the update. |
+| `last` | object | Last trade price per outcome (optional if unchanged). |
+| `volume_24h_delta` | object | Change in 24h volume since the previous message. |
+| `oi_delta` | object | Change in open interest since the previous message. |
+| `asof` | string (ISO-8601) | Timestamp when the update was generated. |
 
-```bash
-wscat -c wss://stream.predexon.com/v1/stream/quotes
-# then paste:
-# {"action":"subscribe","markets":["mkt_evt_macro_2025_09_12_US_NFP_above_200k_yesno"]}
-```
+<Info>
+**Snapshots vs deltas**
 
-## Message Fields
+- The first message per market after subscribing is a full snapshot.
+- Subsequent messages deliver deltas; fields omit values that remain unchanged.
+- Use the `sequence` gap to trigger re-subscription or a fresh REST snapshot.
+</Info>
 
-| Field | Description |
-|-------|-------------|
-| `type` | Message type (always `"quote"`) |
-| `market_uid` | Market identifier |
-| `sequence` | Monotonic sequence number for ordering |
-| `outcomes` | Best bid/ask per outcome |
-| `last` | Last trade price per outcome |
-| `volume_24h_delta` | Change in 24h volume since last message |
-| `oi_delta` | Change in open interest since last message |
-| `asof` | Timestamp of this update |
+## Errors & disconnects
 
-## Notes
+The stream may send control messages or close the connection with standard WebSocket close codes.
 
-- **First message**: Initial message per market is a snapshot; subsequent messages are deltas.
-- **Sequence numbers**: Monotonically increasing. Use to detect gaps.
-- **Gap recovery**: If you detect a sequence gap, resubscribe or use recovery (planned feature).
-- **Delta fields**: `volume_24h_delta` and `oi_delta` are incremental changes.
+| Close Code | Meaning | Recommended Action |
+|------------|---------|--------------------|
+| `4001` | `invalid_token` | Refresh credentials and reconnect. |
+| `4002` | `invalid_request` | Malformed subscribe payload. Fix request JSON. |
+| `4003` | `rate_limit_exceeded` | Slow down subscription churn; wait then reconnect. |
+| `1011` | Server error | Reconnect with backoff. |
+
+## Best practices
+
+1. **Start with a snapshot:** Call [Top-of-Book Quotes](/pages/live-data/quotes) before streaming to seed your local state.
+2. **Track sequences:** Persist the latest `sequence` per market and supply it in new subscriptions to fast-forward missed deltas.
+3. **Handle gaps:** If you miss messages or detect a gap, fetch a fresh snapshot and resubscribe.
+4. **Resubscribe cleanly:** Send `{"action":"unsubscribe"}` before disconnecting to tidy resources (optional but recommended).
 
 ## Related
 
-- [Top-of-Book Quotes](/pages/live-data/quotes) - REST snapshot endpoint
-- [Live Data Overview](/pages/live-data/overview) - Streaming conventions
+- [Top-of-Book Quotes](/pages/live-data/quotes) — REST snapshot endpoint
+- [Stream Order Book](/pages/live-data/stream-orderbook) — L2 depth streaming
+- [Live Data Overview](/pages/live-data/overview) — Streaming conventions and guidelines

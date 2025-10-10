@@ -5,62 +5,163 @@ description: GET /v1/quotes/{market_uid} returns best bid/ask/last, plus 24h sta
 
 # Top-of-Book Quotes
 
-```
+> **GET `/v1/quotes/{market_uid}`** — Snapshot the best bid/ask/last per outcome along with 24h statistics and open interest totals.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/quotes/{market_uid}
 ```
 
-Obtain best bid/ask/last per outcome plus useful stats (24h VWAP/volume, OI).
-
-## Path Parameters
+## Path parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `market_uid` | string | Canonical market identifier |
+| `market_uid` | string | Canonical market identifier. Required. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
-  "market_uid": "mkt_evt_epl_2025_08_16_ARS_TOT_yesno",
-  "outcomes": {
-    "YES": { "bid": "0.542", "ask": "0.548", "last": "0.545" },
-    "NO":  { "bid": "0.452", "ask": "0.458", "last": "0.455" }
-  },
-  "spread": "0.006",
-  "vwap_24h": { "YES": "0.531", "NO": "0.469" },
-  "volume_24h": { "YES": "81200", "NO": "77650" },
-  "open_interest": { "YES": "210340", "NO": "203980" },
-  "asof": "2025-10-06T19:21:02Z"
+  "market_uid": "mkt_evt_epl_2025_08_16_ARS_TOT_winner_ars",
+  "venues": {
+    "polymarket": {
+      "market_slug": "epl-arsenal-tottenham-2025-08-16",
+      "outcomes": {
+        "YES": { "bid": "0.542", "ask": "0.548", "last": "0.545" },
+        "NO":  { "bid": "0.452", "ask": "0.458", "last": "0.455" }
+      },
+      "spread": "0.006",
+      "vwap_24h": { "YES": "0.531", "NO": "0.469" },
+      "volume_24h": { "YES": "81200", "NO": "77650" },
+      "open_interest": { "YES": "210340", "NO": "203980" },
+      "asof": "2025-10-06T19:21:02Z"
+    },
+    "kalshi": {
+      "market_ticker": "KXSOCCER-25AUG16ARSTOT-ARS",
+      "outcomes": {
+        "YES": { "bid": "0.541", "ask": "0.547", "last": "0.545" },
+        "NO":  { "bid": "0.453", "ask": "0.459", "last": "0.455" }
+      },
+      "spread": "0.006",
+      "vwap_24h": { "YES": "0.534", "NO": "0.466" },
+      "volume_24h": { "YES": "43600", "NO": "41500" },
+      "open_interest": { "YES": "110210", "NO": "108880" },
+      "asof": "2025-10-06T19:20:57Z"
+    }
+  }
 }
 ```
 
-## Example Request
+## Field reference
 
-Get quotes for an EPL derby winner market:
+| Field | Type | Description |
+|-------|------|-------------|
+| `market_uid` | string | Canonical market identifier for the aggregated data set. |
+| `venues` | object | Map of venue code → venue-specific quote payload. |
+| `venues.polymarket` | object \| null | Quotes sourced from Polymarket (null if not listed). |
+| `venues.kalshi` | object \| null | Quotes sourced from Kalshi (null if not listed). |
+| `venues[*].market_slug` | string | Venue-native identifier (Polymarket: `market_slug`). |
+| `venues[*].market_ticker` | string | Venue-native identifier (Kalshi: `market_ticker`). |
+| `venues[*].outcomes` | object | Map of outcome code → best bid/ask/last per venue. |
+| `venues[*].outcomes[].bid` | string \| null | Best bid price on that venue (null if no bids). |
+| `venues[*].outcomes[].ask` | string \| null | Best ask price on that venue (null if no asks). |
+| `venues[*].outcomes[].last` | string \| null | Most recent trade price on that venue (null if no trades). |
+| `venues[*].spread` | string | Venue-specific spread (`ask - bid`). |
+| `venues[*].vwap_24h` | object | Venue-specific 24-hour VWAP by outcome. |
+| `venues[*].volume_24h` | object | Venue-specific 24-hour volume. |
+| `venues[*].open_interest` | object | Venue-specific open interest. |
+| `venues[*].asof` | string (ISO-8601) | Timestamp when the venue snapshot was captured. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/quotes/mkt_evt_epl_2025_08_16_ARS_TOT_yesno"
+<Info>
+**Interpreting stats**
+
+- The response includes one entry per venue where the market is listed. Venues that do not list the market appear as `null`.
+- `vwap_24h` and `volume_24h` are maintained per venue over a trailing 24-hour window.
+- `open_interest` reflects the venue's live total of outstanding shares.
+- Prices and sizes are decimal strings; convert to numeric types explicitly to avoid floating-point drift.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/quotes/mkt_evt_epl_2025_08_16_ARS_TOT_winner_ars" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `outcomes` | Best bid/ask/last price per outcome |
-| `spread` | Minimum spread across outcomes (implementation-defined) |
-| `vwap_24h` | 24-hour volume-weighted average price per outcome |
-| `volume_24h` | 24-hour trading volume per outcome |
-| `open_interest` | Current open interest per outcome |
-| `asof` | Timestamp of this snapshot |
+async function getQuote(marketUid) {
+  const res = await fetch(`${base}/quotes/${marketUid}`, {
+    headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-## Notes
+```python Python
+import os
+import requests
 
-- **spread**: The minimum spread across outcomes or chosen side. Calculation is consistent within the API.
-- **asof**: Indicates when this snapshot was captured on the Predexon side.
-- All numeric values are strings for fixed precision.
+def get_quote(market_uid: str) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/quotes/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_quote("mkt_evt_epl_2025_08_16_ARS_TOT_winner_ars"))
+```
+
+</CodeGroup>
+
+Each venue listed in the response inherits the same schema. Venues where the market is absent are returned as `null`.
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "not_found",
+    "message": "market not found",
+    "param": "market_uid"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Malformed `market_uid` |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token not provisioned for Live Data |
+| `404` | `not_found` | Resource not found | Unknown `market_uid` |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 req/min key limit |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Cache snapshots briefly:** Quotes update frequently; cache for a few seconds to reduce load.
+2. **Hydrate from Resolve:** Use [Resolve Selectors](/pages/discovery/resolve) to obtain `market_uid` before quoting.
+3. **Monitor spread per venue:** Evaluate `venues[*].spread` to gauge liquidity and drive market-making logic on each venue.
+4. **Handle absent venues:** Treat missing venue entries (`null`) as "market not listed" on that venue.
+5. **Pair with streaming:** Start with this snapshot, then subscribe to [Stream Quotes](/pages/live-data/stream-quotes) for real-time deltas.
 
 ## Related
 
-- [Stream Quotes](/pages/live-data/stream-quotes) - Real-time quote updates via WebSocket
-- [Market Detail](/pages/discovery/market-detail) - Get market rules and fees
+- [Stream Quotes](/pages/live-data/stream-quotes) — Real-time quote updates via WebSocket
+- [Order Book](/pages/live-data/orderbook) — L2 depth snapshots
+- [Market Detail](/pages/discovery/market-detail) — Market rules, fees, and outcomes

@@ -5,77 +5,171 @@ description: GET /v1/orderbook/{market_uid} returns aggregated price levels per 
 
 # Order Book (L2 Snapshot)
 
-```
+> **GET `/v1/orderbook/{market_uid}`** — Retrieve price-aggregated bid/ask depth per outcome along with a sequence number for reconciling streaming deltas.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/orderbook/{market_uid}
 ```
 
-Fetch L2 (price aggregated) depth across outcomes. Use sequence to align with streaming deltas.
-
-## Path Parameters
+## Path parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `market_uid` | string | Canonical market identifier |
+| `market_uid` | string | Canonical market identifier. Required. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
-  "market_uid": "mkt_evt_nba_2025_10_19_LAL_GSW_yesno",
-  "sequence": 340102,
-  "asof": "2025-10-06T19:21:02Z",
-  "book": {
-    "YES": {
-      "bids": [
-        { "px": "0.532", "qty": "1300" },
-        { "px": "0.531", "qty": "900" }
-      ],
-      "asks": [
-        { "px": "0.538", "qty": "1000" },
-        { "px": "0.539", "qty": "650" }
-      ]
+  "market_uid": "mkt_evt_nba_2025_10_19_LAL_GSW_winner_lal",
+  "venues": {
+    "polymarket": {
+      "market_slug": "nba-lal-gsw-2025-10-19",
+      "sequence": 340102,
+      "asof": "2025-10-06T19:21:02Z",
+      "book": {
+        "YES": {
+          "bids": [
+            { "px": "0.532", "qty": "1300" },
+            { "px": "0.531", "qty": "900" }
+          ],
+          "asks": [
+            { "px": "0.538", "qty": "1000" },
+            { "px": "0.539", "qty": "650" }
+          ]
+        },
+        "NO": {
+          "bids": [ { "px": "0.462", "qty": "800" } ],
+          "asks": [ { "px": "0.468", "qty": "750" } ]
+        }
+      }
     },
-    "NO": {
-      "bids": [
-        { "px": "0.462", "qty": "800" }
-      ],
-      "asks": [
-        { "px": "0.468", "qty": "750" }
-      ]
+    "kalshi": {
+      "market_ticker": "KXNBA-25OCT19LALGSW-LAL",
+      "sequence": 98214,
+      "asof": "2025-10-06T19:21:05Z",
+      "book": {
+        "YES": {
+          "bids": [ { "px": "0.531", "qty": "900" } ],
+          "asks": [ { "px": "0.537", "qty": "700" } ]
+        },
+        "NO": {
+          "bids": [ { "px": "0.463", "qty": "620" } ],
+          "asks": [ { "px": "0.469", "qty": "580" } ]
+        }
+      }
     }
   }
 }
 ```
 
-## Example Request
+## Field reference
 
-Get order book depth for an NBA opener winner market:
+| Field | Type | Description |
+|-------|------|-------------|
+| `market_uid` | string | Canonical market identifier for the aggregated depth. |
+| `venues` | object | Map of venue code → venue-specific order book snapshot. |
+| `venues.polymarket` | object \| null | Polymarket L2 snapshot (null if not listed). |
+| `venues.kalshi` | object \| null | Kalshi L2 snapshot (null if not listed). |
+| `venues[*].market_slug` | string | Polymarket market slug for the venue (when applicable). |
+| `venues[*].market_ticker` | string | Kalshi market ticker for the venue (when applicable). |
+| `venues[*].sequence` | integer | Venue-specific sequence number for L2 deltas. |
+| `venues[*].asof` | string (ISO-8601) | Timestamp when the venue snapshot was generated. |
+| `venues[*].book` | object | Outcome → bids/asks arrays for that venue. |
+| `venues[*].book[outcome].bids` | array | Aggregated bid levels (highest price first). |
+| `venues[*].book[outcome].asks` | array | Aggregated ask levels (lowest price first). |
+| `px` | string | Price level encoded as decimal string. |
+| `qty` | string | Total quantity resting at that price level (replacement semantics). |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/orderbook/mkt_evt_nba_2025_10_19_LAL_GSW_yesno"
+<Info>
+**Working with sequences**
+
+- Each venue exposes its own `sequence` counter. Use it when subscribing to [Stream Order Book](/pages/live-data/stream-orderbook) and resume streams with the correct per-venue value.
+- If you detect a sequence gap for any venue, fetch a fresh snapshot for that venue and resubscribe.
+- Quantities represent aggregated liquidity per price level; individual orders are not exposed.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/orderbook/mkt_evt_nba_2025_10_19_LAL_GSW_winner_lal" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `market_uid` | Market identifier |
-| `sequence` | Sequence number for stream synchronization |
-| `asof` | Timestamp of this snapshot |
-| `book` | Order book per outcome |
-| `book[outcome].bids` | Array of bid price levels (highest first) |
-| `book[outcome].asks` | Array of ask price levels (lowest first) |
-| `px` | Price level as string |
-| `qty` | Aggregated quantity at this level as string |
+async function getOrderBook(marketUid) {
+  const res = await fetch(`${base}/orderbook/${marketUid}`, {
+    headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-## Notes
+```python Python
+import os
+import requests
 
-- **L2 aggregation**: Quantities (`qty`) are aggregated per price level. Individual orders are not shown.
-- **Sequence**: Use this to fast-forward WebSocket streams or detect gaps when consuming deltas.
-- **Ordering**: Bids are ordered highest to lowest; asks are ordered lowest to highest.
+def get_orderbook(market_uid: str) -> dict:
+  res = requests.get(
+      f"https://api.predexon.com/v1/orderbook/{market_uid}",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_orderbook("mkt_evt_nba_2025_10_19_LAL_GSW_winner_lal"))
+```
+
+</CodeGroup>
+
+Each venue returns its own depth snapshot. Venues where the market is unavailable are returned as `null`.
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "not_found",
+    "message": "market not found",
+    "param": "market_uid"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Malformed `market_uid` |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token not provisioned for Live Data |
+| `404` | `not_found` | Resource not found | Unknown `market_uid` |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 req/min key limit |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Snapshot + stream:** Grab this snapshot, then switch to [Stream Order Book](/pages/live-data/stream-orderbook) for incremental updates.
+2. **Track sequence per venue:** Persist the latest `venues[*].sequence` so you can detect missed deltas on each venue.
+3. **Normalize decimals:** Convert `px`/`qty` to decimal types for calculations; they are strings for precision.
+4. **Throttle refreshes:** Avoid refetching more than once per second unless you detect a gap or need a full reset.
 
 ## Related
 
-- [Stream Order Book](/pages/live-data/stream-orderbook) - Real-time L2 updates
-- [Top-of-Book Quotes](/pages/live-data/quotes) - Get best bid/ask only
+- [Stream Order Book](/pages/live-data/stream-orderbook) — Real-time L2 updates
+- [Top-of-Book Quotes](/pages/live-data/quotes) — Best bid/ask snapshots
+- [Market Detail](/pages/discovery/market-detail) — Market metadata
