@@ -5,19 +5,26 @@ description: GET /v1/markets/{market_uid} returns full rules, fees, outcomes, an
 
 # Market Detail
 
-```
+> **GET `/v1/markets/{market_uid}`** — Retrieve canonical market metadata, rule text, fees, outcomes, and venue selectors for pricing or settlement workflows.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** (e.g., `2025-10-06T19:21:02Z`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/markets/{market_uid}
 ```
 
-Get comprehensive market information including rules, fees, outcomes, and native venue identifiers. Everything needed to interpret and price a market.
-
-## Path Parameters
+## Path parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `market_uid` | string | Canonical market identifier |
+| `market_uid` | string | Canonical market identifier. Required. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
@@ -35,20 +42,30 @@ Get comprehensive market information including rules, fees, outcomes, and native
   },
   "rules": {
     "summary": "Pays YES if BLS CPI-U YoY ≥ 3.0% on the October 2025 release.",
-    "full_text": "...",
+    "full_text": "Market resolves YES if the Bureau of Labor Statistics publishes CPI-U YoY at or above 3.0% for the October 2025 release. Otherwise resolves NO.",
     "sources": ["BLS CPI-U release"]
   },
   "outcomes": [
-    { "code": "YES", "token_id": "poly_token_yes" },
-    { "code": "NO",  "token_id": "poly_token_no" }
+    {
+      "code": "YES",
+      "description": "CPI YoY is ≥ 3.0%",
+      "token_id": "poly_token_yes"
+    },
+    {
+      "code": "NO",
+      "description": "CPI YoY is < 3.0%",
+      "token_id": "poly_token_no"
+    }
   ],
   "venue_ids": {
     "polymarket": {
-      "slug": "us-cpi-oct-2025-above-3",
+      "event_slug": "us-cpi-oct-2025",
+      "market_slug": "us-cpi-oct-2025-above-3",
       "condition_id": "0xdef..."
     },
     "kalshi": {
-      "event_ticker": "KXCPIOCT25-ABOVE3"
+      "event_ticker": "KXCPIOCT25",
+      "market_ticker": "KXCPIOCT25-ABOVE3"
     }
   },
   "timestamps": {
@@ -59,23 +76,111 @@ Get comprehensive market information including rules, fees, outcomes, and native
 }
 ```
 
-## Example Request
+## Field reference
 
-Get full details for a CPI market:
+| Field | Type | Description |
+|-------|------|-------------|
+| `market_uid` | string | Canonical, stable market identifier. |
+| `event_uid` | string | Canonical event ID this market belongs to. |
+| `title` | string | Human-readable market question. |
+| `type` | enum | Market type: `binary`, `multi`, or `numeric`. |
+| `trading_status` | enum | Current trading status: `open`, `halted`, or `closed`. |
+| `currency` | string | Settlement currency (typically `USD`). |
+| `tick_size` | string | Minimum price increment (e.g., `"0.0010"` = 0.1 cent). |
+| `min_order_size` | string | Minimum order size, expressed as a string for precision. |
+| `fees.taker_bps` | integer | Taker fee in basis points (20 = 0.20%). |
+| `fees.maker_bps` | integer | Maker fee in basis points. |
+| `rules.summary` | string | Short description of the resolution criteria. |
+| `rules.full_text` | string | Full rule text provided by the venue. |
+| `rules.sources[]` | string[] | References or data sources for settlement. |
+| `outcomes[].code` | string | Outcome code (`YES`, `NO`, ticker symbol, etc.). |
+| `outcomes[].description` | string | Human-readable description of the outcome (optional). |
+| `outcomes[].token_id` | string | Venue-specific token identifier, if applicable. |
+| `venue_ids.polymarket.event_slug` | string | Polymarket event slug for related markets. |
+| `venue_ids.polymarket.market_slug` | string | Polymarket market slug (matches Polymarket URLs). |
+| `venue_ids.polymarket.condition_id` | string | Polymarket on-chain condition ID (if available). |
+| `venue_ids.kalshi.event_ticker` | string | Kalshi event ticker. |
+| `venue_ids.kalshi.market_ticker` | string | Kalshi market ticker for this outcome. |
+| `timestamps.created` | string (ISO-8601) | Timestamp when the market was created in Discovery. |
+| `timestamps.close` | string (ISO-8601) | Scheduled market close. |
+| `asof` | string (ISO-8601) | Snapshot timestamp for this payload. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
+<Info>
+**Interpreting rules & fees**
+
+- `fees` are always expressed in basis points.
+- `rules.full_text` can be long; store it for compliance and quoting.
+- Actual trading interruptions are reflected via `trading_status`, even if `timestamps.close` is in the future.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s -H "Authorization: Bearer $PREDX_TOKEN" \
   "https://api.predexon.com/v1/markets/mkt_evt_cpi_2025_10_14_YoY_above_3"
 ```
 
-## Notes
+```javascript JavaScript
+// Node 18+ (fetch)
+const base = "https://api.predexon.com/v1";
+const headers = { Authorization: `Bearer ${process.env.PREDX_TOKEN}` };
 
-- **fees**: Expressed in basis points (bps). `taker_bps: 20` = 0.20% fee.
-- **rules**: Contains summary, full text, and data sources for market resolution.
-- **timestamps.close**: Scheduled close time. Actual trading halts are reflected in `trading_status`.
-- **min_order_size**: Minimum order size as a string for precision.
+async function getMarketDetail(marketUid) {
+  const res = await fetch(`${base}/markets/${marketUid}`, { headers });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"}
+
+def get_market_detail(market_uid: str) -> dict:
+  r = requests.get(f"{BASE}/markets/{market_uid}", headers=HEADERS, timeout=30)
+  r.raise_for_status()
+  return r.json()
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "not_found",
+    "message": "market not found",
+    "param": "market_uid"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Parameter validation failed | Malformed `market_uid` |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token doesn't have access to Discovery API |
+| `404` | `not_found` | Resource doesn't exist | Unknown `market_uid` |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 requests/minute. Check `Retry-After` header. |
+| `500` | `internal_error` | Server error | Contact support@predexon.com with request ID |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Cache by market_uid:** Cache responses by `market_uid` and invalidate when `asof` changes.
+2. **Sync with list endpoints:** Store `market_uid` values from [List Markets](/pages/discovery/markets) and hydrate details on-demand.
+3. **Preserve rule text:** Persist `rules.full_text` for compliance reviews and dispute handling.
+4. **Map venue identifiers:** Use `venue_ids.*` to fetch liquidity or settlement data from venue-native APIs.
 
 ## Related
 
-- [List Markets](/pages/discovery/markets) - Browse markets before fetching details
-- [Resolve Selectors](/pages/discovery/resolve) - Convert native IDs to market_uid
+- [List Markets](/pages/discovery/markets) — Browse markets before fetching details
+- [List Events](/pages/discovery/events) — Discover events that own these markets
+- [Matching Markets](/pages/discovery/matching) — Map venue selectors to canonical IDs

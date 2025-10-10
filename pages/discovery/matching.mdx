@@ -5,65 +5,171 @@ description: GET /v1/matching/markets maps venue-native selectors or event_uid t
 
 # Matching Markets
 
-```
+> **GET `/v1/matching/markets`** — Resolve venue-native selectors or `event_uid` values to canonical `market_uid` entries with confidence scores.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601** when present (e.g., `2025-10-06T19:21:02Z`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 GET /v1/matching/markets
 ```
 
-Convert venue-native selectors (Polymarket slugs, Kalshi tickers) or `event_uid` to canonical `market_uid` with confidence scores.
+## Query parameters
 
-## Query Parameters
+Provide at least one selector per request.
 
-Provide at least one of the following:
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| `polymarket_event_slug[]` | string[] | Polymarket event slugs (repeatable). Accepts up to 50 values. |
+| `polymarket_market_slug[]` | string[] | Polymarket market slugs (repeatable). Accepts up to 50 values. |
+| `kalshi_event_ticker[]` | string[] | Kalshi event tickers (repeatable). Accepts up to 50 values. |
+| `kalshi_market_ticker[]` | string[] | Kalshi market tickers (repeatable). Accepts up to 50 values. |
+| `event_uid[]` | string[] | Canonical event IDs. Use to fetch all markets for an event. Repeatable. |
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `polymarket_event_slug[]` | string | Polymarket event slug (repeatable) |
-| `polymarket_market_slug[]` | string | Polymarket market slug (repeatable) |
-| `kalshi_event_ticker[]` | string | Kalshi event ticker (repeatable) |
-| `kalshi_market_ticker[]` | string | Kalshi market ticker (repeatable) |
-| `event_uid` | string | Canonical event identifier |
+<Info>
+**Query behavior**
 
-## Response Schema
+- At least one parameter is required. You can mix selector types within a single request.
+- Array parameters resolve independently. The response includes a match object for each selector that could be resolved.
+- Duplicate selectors are deduplicated in the response by `market_uid`.
+- When multiple markets could match a selector, they are all returned, sorted by `confidence` (descending).
+- Matching Polymarket and Kalshi selectors for the same market produce the same canonical `market_uid`, making cross-venue joins straightforward.
+</Info>
+
+## Response schema
 
 ```json
 {
   "matches": [
     {
-      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy",
       "event_uid": "evt_mlb_2025_07_12_NYY_BOS",
-      "venues": {
+      "confidence": 0.97,
+      "input": {
+        "type": "polymarket_event_slug",
+        "value": "mlb-nyy-bos-2025-07-12"
+      },
+      "venue_ids": {
         "polymarket": {
-          "slug": "mlb-nyy-bos-2025-07-12",
+          "event_slug": "mlb-nyy-bos-2025-07-12",
+          "market_slug": "will-yankees-win",
           "condition_id": "0xabc..."
         },
         "kalshi": {
-          "event_ticker": "KXMLBGAME-25JUL12NYYBOS"
+          "event_ticker": "KXMLBGAME-25JUL12NYYBOS",
+          "market_ticker": "KXMLBNYY-25JUL12"
         }
-      },
-      "confidence": 0.97
+      }
     }
   ]
 }
 ```
 
-## Example Request
+## Field reference
 
-Map two Polymarket event slugs to canonical markets:
+| Field | Type | Description |
+|-------|------|-------------|
+| `matches[]` | array | Array of match results for the selectors you provided. |
+| `matches[].market_uid` | string | Canonical market identifier for the matched market. |
+| `matches[].event_uid` | string | Canonical event identifier that owns this market. |
+| `matches[].confidence` | number | Confidence score between 0 and 1 (higher means stronger match). |
+| `matches[].input.type` | string | Selector type that produced this match (e.g., `polymarket_market_slug`). |
+| `matches[].input.value` | string | Selector value that was matched. |
+| `matches[].venue_ids.polymarket.event_slug` | string | Polymarket event slug for the matched market. |
+| `matches[].venue_ids.polymarket.market_slug` | string | Polymarket market slug for the matched market. |
+| `matches[].venue_ids.polymarket.condition_id` | string | Polymarket on-chain condition ID, if available. |
+| `matches[].venue_ids.kalshi.event_ticker` | string | Kalshi event ticker for the matched market. |
+| `matches[].venue_ids.kalshi.market_ticker` | string | Kalshi market ticker for the matched market/outcome. |
 
-```bash
-curl -s -G -H "Authorization: Bearer $TOKEN" \
+<Info>
+**Interpreting matches**
+
+- Expect multiple match objects when a selector maps to several markets or outcomes. Use `confidence` to pick the highest-confidence candidate.
+- If no match is found for a selector, it is omitted from the response.
+- `event_uid` values can be resolved back to full event metadata via [List Events](/pages/discovery/events).
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s -G -H "Authorization: Bearer $PREDX_TOKEN" \
   --data-urlencode "polymarket_event_slug=mlb-nyy-bos-2025-07-12" \
-  --data-urlencode "polymarket_event_slug=mlb-lad-sf-2025-07-12" \
+  --data-urlencode "kalshi_market_ticker=KXMLBNYY-25JUL12" \
   "https://api.predexon.com/v1/matching/markets"
 ```
 
-## Notes
+```javascript JavaScript
+// Node 18+ (fetch)
+const base = "https://api.predexon.com/v1";
+const headers = { Authorization: `Bearer ${process.env.PREDX_TOKEN}` };
 
-- **Multiple candidates**: When matching is ambiguous, multiple results may be returned. Use the `confidence` score to choose the best match or filter further.
-- **Confidence**: A score between 0 and 1 indicating match quality. Higher is better.
-- **Repeatable parameters**: Use array notation (`polymarket_event_slug[]`, `polymarket_market_slug[]`) to match multiple slugs in one request.
+async function matchBySelectors(selectors) {
+  const url = new URL(`${base}/matching/markets`);
+  for (const [key, values] of Object.entries(selectors)) {
+    values.forEach((value) => url.searchParams.append(`${key}[]`, value));
+  }
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"}
+
+def match_markets(params: dict) -> dict:
+  # params example: {"polymarket_market_slug[]": ["will-yankees-win"]}
+  r = requests.get(f"{BASE}/matching/markets", headers=HEADERS, params=params, timeout=30)
+  r.raise_for_status()
+  return r.json()
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "provide at least one selector",
+    "param": null
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | No selectors provided, malformed selector value |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token doesn't have access to Discovery API |
+| `404` | `not_found` | Selector did not match any market | Unknown slug or ticker |
+| `422` | `too_many_values` | Array parameter exceeds limit | More than 50 selectors in a single array parameter |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 requests/minute. Check `Retry-After` header. |
+| `500` | `internal_error` | Server error | Contact support@predexon.com with request ID |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Batch selectors:** Send up to 50 selectors per type to minimize API calls.
+2. **Trust but verify:** Use `confidence` thresholds (e.g., ≥0.9) and fall back to manual review or [List Markets](/pages/discovery/markets) when scores are low.
+3. **Store canonical IDs:** Cache `market_uid` and `event_uid` results so future lookups can use canonical IDs directly.
+4. **Hydrate market detail:** After matching, call [Market Detail](/pages/discovery/market-detail) for rule text, fees, and outcomes.
 
 ## Related
 
-- [Resolve Selectors](/pages/discovery/resolve) - Bulk resolve mixed selectors
-- [List Markets](/pages/discovery/markets) - Browse all markets
+- [List Markets](/pages/discovery/markets) — Browse canonical markets
+- [Market Detail](/pages/discovery/market-detail) — Fetch full market metadata
+- [Resolve Selectors](/pages/discovery/resolve) — Bulk convert selectors to canonical IDs

@@ -5,102 +5,196 @@ description: POST /v1/resolve bulk-resolves mixed selectors into canonical marke
 
 # Resolve Selectors
 
-```
+> **POST `/v1/resolve`** — Bulk resolve any mix of venue-native selectors or canonical IDs into `market_uid` and `event_uid` pairs.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps in responses are **UTC ISO-8601** when present (e.g., `2025-10-06T19:21:02Z`)
+- **Rate Limits:** 100 requests/minute per API key. Returns `429` with `Retry-After` header (seconds) when exceeded. Use exponential backoff on 429/503 responses.
+
+## Endpoint
+
+```http
 POST /v1/resolve
 ```
 
-Bulk resolve any mix of selectors (Polymarket slugs, Kalshi tickers, canonical IDs) to canonical `market_uid` and `event_uid`.
-
-## Request Body
+## Request body
 
 ```json
 {
   "selectors": [
-    { "venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3" },
-    { "venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
-    { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno" }
+    { "venue": "polymarket", "market_slug": "will-yankees-win" },
+    { "venue": "kalshi", "market_ticker": "KXMLBNYY-25JUL12" },
+    { "venue": "polymarket", "event_slug": "mlb-nyy-bos-2025-07-12" },
+    { "venue": "kalshi", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
+    { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy" }
   ]
 }
 ```
 
-### Selector Types
+| Field | Type | Description |
+|-------|------|-------------|
+| `selectors` | `array<object>` | Required. List of selectors to resolve. Maximum 100 entries per request. |
+| `selectors[].venue` | enum | Optional. `polymarket` or `kalshi`. Required when providing venue-native selectors. |
+| `selectors[].event_slug` | string | Polymarket event slug. Requires `venue=polymarket`. Resolves to `event_uid` (with `market_uid = null`). |
+| `selectors[].market_slug` | string | Polymarket market slug. Requires `venue=polymarket`. Resolves to both `market_uid` and `event_uid`. |
+| `selectors[].event_ticker` | string | Kalshi event ticker. Requires `venue=kalshi`. Resolves to `event_uid` (with `market_uid = null`). |
+| `selectors[].market_ticker` | string | Kalshi market ticker. Requires `venue=kalshi`. Resolves to both `market_uid` and `event_uid`. |
+| `selectors[].market_uid` | string | Canonical market identifier. Use when you already have the canonical ID. |
 
-Each selector can be one of:
+<Info>
+**Selector rules**
 
-**Polymarket event selector:**
-```json
-{ "venue": "POLYMARKET", "event_slug": "..." }
-```
+- Provide exactly one identifier per selector object (event slug, market slug, event ticker, market ticker, or market_uid).
+- Venue must be lowercase (`polymarket`, `kalshi`) to match the rest of the API.
+- You can mix selector types within a single request; results are returned in the same order as inputs.
+- Equivalent selectors from different venues that reference the same market or event resolve to identical canonical IDs.
+</Info>
 
-**Polymarket market selector:**
-```json
-{ "venue": "POLYMARKET", "market_slug": "..." }
-```
-
-**Kalshi event selector:**
-```json
-{ "venue": "KALSHI", "event_ticker": "..." }
-```
-
-**Kalshi market selector:**
-```json
-{ "venue": "KALSHI", "market_ticker": "..." }
-```
-
-**Canonical ID selector:**
-```json
-{ "market_uid": "..." }
-```
-
-## Response Schema
+## Response schema
 
 ```json
 {
   "results": [
     {
-      "input": { "venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3" },
-      "market_uid": "mkt_evt_cpi_2025_10_14_YoY_above_3",
-      "event_uid": "evt_macro_2025_10_14_US_CPI"
-    },
-    {
-      "input": { "venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
-      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "input": { "venue": "polymarket", "market_slug": "will-yankees-win" },
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy",
       "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
     },
     {
-      "input": { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno" },
-      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno",
+      "input": { "venue": "kalshi", "market_ticker": "KXMLBNYY-25JUL12" },
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy",
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    },
+    {
+      "input": { "venue": "polymarket", "event_slug": "mlb-nyy-bos-2025-07-12" },
+      "market_uid": null,
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    },
+    {
+      "input": { "venue": "kalshi", "event_ticker": "KXMLBGAME-25JUL12NYYBOS" },
+      "market_uid": null,
+      "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
+    },
+    {
+      "input": { "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy" },
+      "market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy",
       "event_uid": "evt_mlb_2025_07_12_NYY_BOS"
     }
   ]
 }
 ```
 
-## Example Request
+## Field reference
 
-Bulk resolve a mixed list of selectors:
+| Field | Type | Description |
+|-------|------|-------------|
+| `results[]` | array | Resolved results, in the same order as the input selectors. |
+| `results[].input` | object | Echo of the original selector. Useful for correlating results with inputs. |
+| `results[].market_uid` | string \| null | Canonical market identifier. `null` if the selector could not be resolved. |
+| `results[].event_uid` | string \| null | Canonical event identifier associated with the market. `null` if unresolved. |
 
-```bash
-curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+<Info>
+**Unresolvable selectors**
+
+- Unmatched selectors return `market_uid`/`event_uid` as `null`. Future revisions may include structured error details (e.g., `{ "error": {"type": "not_found"} }`).
+- Canonical IDs (`market_uid`) are idempotent: if already canonical, the same ID is returned.
+- Returned canonical IDs follow the [Discovery ID contract](/pages/discovery/overview) (e.g., `evt_{category}_{date}_{participants}` and `mkt_{event_uid}_{outcome}`) and remain stable once assigned.
+- Equivalent Polymarket and Kalshi selectors resolve to the same canonical ID, so you can safely merge data across venues.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s -X POST -H "Authorization: Bearer $PREDX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "selectors": [
-      {"venue": "POLYMARKET", "market_slug": "us-cpi-oct-2025-above-3"},
-      {"venue": "KALSHI", "event_ticker": "KXMLBGAME-25JUL12NYYBOS"},
-      {"market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_yesno"}
+      {"venue": "polymarket", "market_slug": "will-yankees-win"},
+      {"venue": "kalshi", "market_ticker": "KXMLBNYY-25JUL12"},
+      {"venue": "polymarket", "event_slug": "mlb-nyy-bos-2025-07-12"},
+      {"venue": "kalshi", "event_ticker": "KXMLBGAME-25JUL12NYYBOS"},
+      {"market_uid": "mkt_evt_mlb_2025_07_12_NYY_BOS_winner_nyy"}
     ]
   }' \
-  https://api.predexon.com/v1/resolve
+  "https://api.predexon.com/v1/resolve"
 ```
 
-## Notes
+```javascript JavaScript
+// Node 18+ (fetch)
+const base = "https://api.predexon.com/v1";
+const headers = {
+  Authorization: `Bearer ${process.env.PREDX_TOKEN}`,
+  "Content-Type": "application/json",
+};
 
-- **Output order**: Results are returned in the same order as the input selectors.
-- **Unresolvable inputs**: In MVP, unresolvable selectors may return `null` IDs with an optional error explanation. Future versions will provide detailed error handling.
-- **Idempotent**: Passing a canonical `market_uid` returns the same `market_uid` plus its associated `event_uid`.
-- **Bulk efficiency**: Use this endpoint to resolve multiple selectors in a single request rather than making individual calls.
+async function resolveSelectors(selectors) {
+  // selectors example: [{ venue: "polymarket", market_slug: "will-yankees-win" }]
+  const res = await fetch(`${base}/resolve`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ selectors }),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
+
+```python Python
+import os, requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {
+  "Authorization": f"Bearer {os.environ['PREDX_TOKEN']}",
+  "Content-Type": "application/json",
+}
+
+def resolve_selectors(selectors: list[dict]) -> dict:
+  # selectors example: [{"venue": "polymarket", "market_slug": "will-yankees-win"}]
+  payload = {"selectors": selectors}
+  r = requests.post(f"{BASE}/resolve", headers=HEADERS, json=payload, timeout=30)
+  r.raise_for_status()
+  return r.json()
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "selectors must be a non-empty array",
+    "param": "selectors"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Missing selectors array, mixed selector fields, invalid venue enum |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | API key lacks required permissions | Token doesn't have access to Discovery API |
+| `404` | `not_found` | Selector did not resolve | Unknown slug or ticker |
+| `422` | `too_many_values` | Request exceeds selector limit | More than 100 entries in `selectors` |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 100 requests/minute. Check `Retry-After` header. |
+| `500` | `internal_error` | Server error | Contact support@predexon.com with request ID |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Batch resolution:** Resolve up to 100 selectors per request to minimize network round trips.
+2. **Normalize inputs:** Lowercase venue names and validate selector formats before sending.
+3. **Cache canonical IDs:** Once resolved, store `market_uid`/`event_uid` so future lookups can skip matching.
+4. **Follow-up requests:** Hydrate resolved markets with [Market Detail](/pages/discovery/market-detail) or [List Markets](/pages/discovery/markets) as needed.
 
 ## Related
 
-- [Matching Markets](/pages/discovery/matching) - Alternative approach with confidence scores
-- [Market Detail](/pages/discovery/market-detail) - Get full details after resolving
+- [Matching Markets](/pages/discovery/matching) — Resolve selectors with confidence scores
+- [Market Detail](/pages/discovery/market-detail) — Get full market metadata after resolution
+- [List Events](/pages/discovery/events) — Retrieve event context for resolved markets
