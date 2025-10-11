@@ -4,39 +4,38 @@ description: Unified balances, positions, PnL, activities, and live portfolio de
 ---
 
 # Portfolio & Linking
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
-Link native venue accounts and query normalized balances, positions, PnL, and activities; subscribe to live portfolio deltas.
+Manage venue account linkage and query normalized balances, positions, PnL, and activities. Subscribe to real-time portfolio deltas after linking.
 
 ## Base URLs
 
-- **REST**: `https://api.predexon.com/v1`
-- **WebSocket**: `wss://stream.predexon.com/v1`
-
-## Authentication
-
-All portfolio endpoints require authentication. Include your API token in the `Authorization` header.
+- **REST:** `https://api.predexon.com/v1`
+- **WebSocket:** `wss://stream.predexon.com/v1`
 
 ## Conventions
 
-For complete conventions (time format, numeric precision, pagination, IDs, error handling), see the [Discovery API Overview](/pages/discovery/overview).
+Portfolio endpoints follow the same authentication, ID, and pagination conventions described in the [Discovery API Overview](/pages/discovery/overview). Additional notes:
 
-## What's Included
+- Link accounts via `/v1/link/wallets` before calling portfolio endpoints.
+- All monetary values are returned as strings for precision.
+- WebSocket streams use snapshot-then-delta semantics with monotonic `sequence` integers.
 
-### REST Endpoints
-- **Balances** - Cash and collateral by venue
-- **Positions** - Normalized outcome-level holdings with live marks
-- **PnL** - Realized, unrealized, and fees over time
-- **Activities** - Unified ledger of trades, deposits, withdrawals, resolutions
+## Workflow
 
-### WebSocket
-- **Stream Portfolio** - Live positions and PnL deltas
-
-### Account Management
-- **Link Accounts** - Verify and link native venue accounts
+1. **Link accounts:** Verify venue accounts using [Link Accounts](/pages/portfolio/link-accounts).
+2. **Fetch snapshots:** Pull [Balances](/pages/portfolio/balances), [Positions](/pages/portfolio/positions), and [PnL](/pages/portfolio/pnl) as needed.
+3. **Review history:** Inspect [Activities](/pages/portfolio/activities) to reconcile trades and cash movements.
+4. **Stream updates:** Subscribe to [Stream Portfolio](/pages/portfolio/stream) for live position and PnL deltas.
 
 ## Endpoints
 
 <CardGroup cols={2}>
+  <Card title="Link Accounts" icon="link" href="/pages/portfolio/link-accounts">
+    POST/GET /v1/link/wallets
+  </Card>
   <Card title="Balances" icon="wallet" href="/pages/portfolio/balances">
     GET /v1/portfolio/balances
   </Card>
@@ -52,7 +51,10 @@ For complete conventions (time format, numeric precision, pagination, IDs, error
   <Card title="Stream Portfolio" icon="tower-broadcast" href="/pages/portfolio/stream">
     WS /v1/stream/portfolio
   </Card>
-  <Card title="Link Accounts" icon="link" href="/pages/portfolio/link-accounts">
-    POST/GET /v1/link/wallets
-  </Card>
 </CardGroup>
+
+## Related
+
+- [Discovery Overview](/pages/discovery/overview) — Canonical IDs and venue conventions
+- [Live Data Overview](/pages/live-data/overview) — Streaming conventions shared across APIs
+- [Time Series Overview](/pages/time-series/overview) — Historical analytics to complement portfolio data

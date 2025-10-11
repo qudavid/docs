@@ -4,29 +4,39 @@ description: GET /v1/portfolio/positions returns normalized outcome-level holdin
 ---
 
 # Positions
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
-```
+> **GET `/v1/portfolio/positions`** — Retrieve unified outcome-level holdings across linked venues with live mark prices and margin requirements.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601**
+- **Rate Limits:** 40 requests/minute per API key. `429` responses include `Retry-After` (seconds).
+
+## Endpoint
+
+```http
 GET /v1/portfolio/positions
 ```
 
-Unified holdings across venues per outcome.
-
-## Query Parameters
+## Query parameters
 
 All parameters are optional.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `venue` | enum | Filter by venue: `POLYMARKET`, `KALSHI` |
-| `market_uid` | string | Filter by canonical market identifier |
+| `venue` | enum | Filter by venue (`POLYMARKET`, `KALSHI`). |
+| `market_uid` | string | Filter by canonical market identifier. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
   "positions": [
     {
-      "market_uid": "mkt_evt_atp_2025_07_14_WIMBLEDON_final_yesno",
+      "market_uid": "mkt_evt_atp_2025_07_14_WIMBLEDON_final_winner_djokovic",
       "venue": "POLYMARKET",
       "outcome": "YES",
       "qty": "320.000000",
@@ -41,40 +51,100 @@ All parameters are optional.
 }
 ```
 
-## Example Request
+## Field reference
 
-Get all Polymarket positions:
+| Field | Type | Description |
+|-------|------|-------------|
+| `positions` | array | Outcome-level positions across venues. |
+| `positions[].market_uid` | string | Canonical market identifier. |
+| `positions[].venue` | string | Venue code (`POLYMARKET`, `KALSHI`). |
+| `positions[].outcome` | string | Outcome code held (e.g., `YES`, `NO`, contract ticker). |
+| `positions[].qty` | string | Position quantity (shares/contracts). |
+| `positions[].avg_cost` | string | Volume-weighted average entry price. |
+| `positions[].mark_price` | string | Current mark price used for valuation. |
+| `positions[].market_value` | string | Current market value (`qty × mark_price`). |
+| `positions[].im_margin` | string | Initial margin requirement, if applicable. |
+| `positions[].mm_margin` | string | Maintenance margin requirement, if applicable. |
+| `asof` | string (ISO-8601) | Snapshot timestamp. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/portfolio/positions?venue=POLYMARKET"
+<Info>
+**Unrealized PnL**
+
+Compute unrealized PnL per position as `(mark_price - avg_cost) × qty`. Combine positions by `market_uid` to derive total market exposure.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/portfolio/positions?venue=POLYMARKET" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `positions` | Array of position objects |
-| `positions[].market_uid` | Canonical market identifier |
-| `positions[].venue` | Venue where position is held |
-| `positions[].outcome` | Outcome code (e.g., `YES`, `NO`) |
-| `positions[].qty` | Position quantity (shares/contracts) as string |
-| `positions[].avg_cost` | Average cost per share as string |
-| `positions[].mark_price` | Current market price as string |
-| `positions[].market_value` | Current market value (qty × mark_price) |
-| `positions[].im_margin` | Initial margin requirement |
-| `positions[].mm_margin` | Maintenance margin requirement |
-| `asof` | Timestamp of this snapshot |
+async function listPositions(params = {}) {
+  const url = new URL(`${base}/portfolio/positions`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
 
-## Notes
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-- **Live marks**: `mark_price` is updated in real-time based on current market conditions.
-- **Unrealized PnL**: Calculate as `(mark_price - avg_cost) × qty`.
-- **Margin**: `im_margin` is required to open; `mm_margin` is the minimum to maintain.
-- **Multi-venue**: Positions from all linked venues are returned unless filtered.
+```python Python
+import os
+import requests
+
+def list_positions(**params) -> dict:
+  res = requests.get(
+      "https://api.predexon.com/v1/portfolio/positions",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      params=params,
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(list_positions(venue="POLYMARKET"))
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "insufficient_permissions",
+    "message": "link an account before requesting positions"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | User has not linked required accounts | Call [Link Accounts](/pages/portfolio/link-accounts) first |
+| `404` | `not_found` | No positions found | No open positions or filters exclude all data |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 40 req/min |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Reconcile with balances:** Use collateral (`balances[].collateral`) alongside `im_margin`/`mm_margin` to monitor margin usage.
+2. **Group by market:** Aggregate positions by `market_uid` to compute net exposure per market and translate outcomes to plain language via [Market Detail](/pages/discovery/market-detail).
+3. **Refresh before trading:** Pull positions immediately after trades or resolutions, or subscribe to [Stream Portfolio](/pages/portfolio/stream) for deltas.
+4. **Monitor mark drift:** Large differences between `avg_cost` and `mark_price` indicate unrealized PnL swings; pair with [PnL](/pages/portfolio/pnl) for historical context.
 
 ## Related
 
-- [PnL](/pages/portfolio/pnl) - See realized and unrealized profit/loss
-- [Stream Portfolio](/pages/portfolio/stream) - Real-time position updates
-- [Market Detail](/pages/discovery/market-detail) - Get market information
+- [Balances](/pages/portfolio/balances) — View cash and collateral per venue
+- [PnL](/pages/portfolio/pnl) — Realized and unrealized profit/loss
+- [Stream Portfolio](/pages/portfolio/stream) — Live updates to positions and PnL

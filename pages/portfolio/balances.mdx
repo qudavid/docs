@@ -4,14 +4,24 @@ description: GET /v1/portfolio/balances returns balances per venue plus normaliz
 ---
 
 # Balances
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
-```
+> **GET `/v1/portfolio/balances`** — Snapshot cash and collateral across linked venues with normalized totals.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601**
+- **Rate Limits:** 40 requests/minute per API key. `429` responses include `Retry-After` (seconds).
+
+## Endpoint
+
+```http
 GET /v1/portfolio/balances
 ```
 
-Cash and collateral by venue with normalized totals.
-
-## Response Schema
+## Response schema
 
 ```json
 {
@@ -38,35 +48,98 @@ Cash and collateral by venue with normalized totals.
 }
 ```
 
-## Example Request
+## Field reference
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/portfolio/balances"
+| Field | Type | Description |
+|-------|------|-------------|
+| `balances` | array | Balances per linked venue. |
+| `balances[].venue` | string | Venue identifier (`POLYMARKET`, `KALSHI`). |
+| `balances[].account_ref` | string | Venue-native account reference (wallet address, account ID). |
+| `balances[].currency` | string | Native currency code (e.g., `USDC`, `USD`). |
+| `balances[].cash` | string | Available cash balance. |
+| `balances[].collateral` | string | Cash currently pledged as collateral/margin. |
+| `totals` | array | Normalized totals across venues (usually USD). |
+| `totals[].currency` | string | Currency of the total (e.g., `USD`). |
+| `totals[].cash` | string | Aggregate cash across venues, normalized. |
+| `asof` | string (ISO-8601) | Snapshot timestamp. |
+
+<Info>
+**Normalization**
+
+- Stablecoins (USDC) and fiat balances are normalized to USD in `totals`.
+- Collateral values remain in native currency; use local FX rates if you need other conversions.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/portfolio/balances" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `balances` | Array of balances per venue |
-| `balances[].venue` | Venue identifier (e.g., `POLYMARKET`, `KALSHI`) |
-| `balances[].account_ref` | Venue-specific account reference |
-| `balances[].currency` | Currency code (e.g., `USDC`, `USD`) |
-| `balances[].cash` | Available cash balance as string |
-| `balances[].collateral` | Collateral posted for open positions as string |
-| `totals` | Normalized totals across venues |
-| `totals[].currency` | Normalized currency (usually `USD`) |
-| `totals[].cash` | Total available cash across all venues |
-| `asof` | Timestamp of this snapshot |
+async function getBalances() {
+  const res = await fetch(`${base}/portfolio/balances`, {
+    headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-## Notes
+```python Python
+import os
+import requests
 
-- **Collateral**: Amount of cash allocated to margin requirements for open positions.
-- **Normalization**: Stablecoins like USDC are normalized to USD equivalents in `totals`.
-- **Multi-venue**: If you have linked accounts on multiple venues, all balances are returned.
+def get_balances():
+  res = requests.get(
+      "https://api.predexon.com/v1/portfolio/balances",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_balances())
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "insufficient_permissions",
+    "message": "link an account before requesting balances"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | User has not linked required accounts | Call [Link Accounts](/pages/portfolio/link-accounts) first |
+| `404` | `not_found` | No balances available | Linked accounts exist but have no balance records yet |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 40 req/min |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Refresh after linking:** Fetch balances immediately after linking accounts to confirm access.
+2. **Cache briefly:** Balance snapshots change slowly—cache for a few seconds to reduce repeated calls.
+3. **Track per venue:** Use `balances[].collateral` to monitor margin usage per venue alongside positions.
+4. **Normalize as needed:** If you require non-USD totals, convert using your own FX rates based on `balances[].currency`.
 
 ## Related
 
-- [Positions](/pages/portfolio/positions) - See open positions using your collateral
-- [Link Accounts](/pages/portfolio/link-accounts) - Link venue accounts to see balances
+- [Link Accounts](/pages/portfolio/link-accounts) — Connect venue accounts
+- [Positions](/pages/portfolio/positions) — View open positions using the reported collateral
+- [PnL](/pages/portfolio/pnl) — Inspect realized and unrealized profit/loss

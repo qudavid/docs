@@ -4,38 +4,46 @@ description: Link and verify native venue accounts; list currently linked accoun
 ---
 
 # Link Accounts
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
-Link and verify native venue accounts to enable portfolio tracking across Polymarket and Kalshi.
+> **POST `/v1/link/wallets`**, **GET `/v1/link/wallets`** — Manage the mapping between your Predexon identity and venue accounts for Polymarket and Kalshi.
 
-## Link/Verify Account
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Rate Limits:** 20 requests/minute per API key. `429` responses include `Retry-After` (seconds).
 
-```
+## Link or verify an account
+
+### Endpoint
+
+```http
 POST /v1/link/wallets
 ```
 
-Verify and persist the mapping between your Predexon identity and venue accounts.
+### Request body
 
-### Request Examples
+| Field | Type | Description |
+|-------|------|-------------|
+| `venue` | enum | `POLYMARKET` \| `KALSHI`. Required. |
+| `address` | string | Polymarket wallet address (checksummed). Required when `venue=POLYMARKET`. |
+| `signature` | string | EVM signature proving ownership of `address`. Required when `venue=POLYMARKET`. |
+| `account_id` | string | Kalshi account identifier. Required when `venue=KALSHI`. |
+| `api_key_hint` | string | Optional hint (e.g., last 4 chars of Kalshi API key) for account confirmation UI. |
+| `kalshi_key_id` | string | Kalshi API key ID (value used in `KALSHI-ACCESS-KEY`). Required when `venue=KALSHI`. |
+| `kalshi_signature` | string | Signature of the Predexon-provided challenge using the Kalshi RSA private key. Required when `venue=KALSHI`. |
+| `challenge` | string | Challenge text to sign. Omit on first request; if verification is needed Predexon returns a challenge to sign and resubmit. |
 
-**Polymarket (EVM wallet):**
-```json
-{
-  "venue": "POLYMARKET",
-  "address": "0x7c3d...",
-  "signature": "0x..."
-}
-```
+<Info>
+**Verification requirements**
 
-**Kalshi:**
-```json
-{
-  "venue": "KALSHI",
-  "account_id": "A12345",
-  "api_key_hint": "pk_live_***"
-}
-```
+- For **Polymarket**, sign a deterministic message (e.g., `"Link to Predexon"`) with the wallet specified in `address`. The signature must recover the provided address under secp256k1 rules; generate a fresh signature when prompted.
+- For **Kalshi**, supply the venue-issued `account_id` together with the API key ID (`kalshi_key_id`). If Predexon returns a `challenge`, sign it with your Kalshi RSA private key and include the signature in `kalshi_signature`. An optional `api_key_hint` (e.g., last 4–6 characters) helps support confirm ownership without sharing the full secret.
+</Info>
 
-### Response Schema
+
+### Response schema
 
 ```json
 {
@@ -55,26 +63,70 @@ Verify and persist the mapping between your Predexon identity and venue accounts
 }
 ```
 
-### Example Request
+### Examples
 
-Link Polymarket wallet:
+<CodeGroup>
 
-```bash
-curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+```bash cURL
+curl -s -X POST "https://api.predexon.com/v1/link/wallets" \
+  -H "Authorization: Bearer $PREDX_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"venue":"POLYMARKET","address":"0x7c3d...","signature":"0x..."}' \
-  "https://api.predexon.com/v1/link/wallets"
+  -d '{"venue":"POLYMARKET","address":"0x7c3d...","signature":"0x..."}'
 ```
 
-## List Linked Accounts
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
+const headers = {
+  Authorization: `Bearer ${process.env.PREDX_TOKEN}`,
+  "Content-Type": "application/json",
+};
 
+async function linkPolymarket(address, signature) {
+  const res = await fetch(`${base}/link/wallets`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ venue: "POLYMARKET", address, signature }),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
 ```
+
+```python Python
+import os
+import requests
+
+BASE = "https://api.predexon.com/v1"
+HEADERS = {
+    "Authorization": f"Bearer {os.environ['PREDX_TOKEN']}",
+    "Content-Type": "application/json",
+}
+
+payload = {
+    "venue": "KALSHI",
+    "account_id": "A12345",
+    "kalshi_key_id": "a952bcbe-ec3b-4b5b-b8f9-11dae589608c",
+    "kalshi_signature": "MEUCIQC...",
+    "challenge": "SIGN THIS CHALLENGE",
+    "api_key_hint": "pk_live_xxxx",
+}
+
+res = requests.post(f"{BASE}/link/wallets", headers=HEADERS, json=payload, timeout=30)
+res.raise_for_status()
+print(res.json())
+```
+
+</CodeGroup>
+
+## List linked accounts
+
+### Endpoint
+
+```http
 GET /v1/link/wallets
 ```
 
-Fetch all linked accounts and their verification status.
-
-### Response Schema
+### Response schema
 
 ```json
 {
@@ -94,48 +146,83 @@ Fetch all linked accounts and their verification status.
 }
 ```
 
-### Example Request
+### Field reference
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/link/wallets"
+| Field | Type | Description |
+|-------|------|-------------|
+| `linked` | boolean | Indicates whether the POST operation succeeded. Present only in POST responses. |
+| `wallets` | array | Linked venue accounts. |
+| `wallets[].venue` | enum | `POLYMARKET` \| `KALSHI`. |
+| `wallets[].address` | string \| null | Wallet address (Polymarket). |
+| `wallets[].account_id` | string \| null | Account identifier (Kalshi). |
+| `wallets[].verified` | boolean | Verification status. |
+| `asof` | string (ISO-8601) | Snapshot timestamp (GET only). |
+
+### Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/link/wallets" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+async function listLinkedAccounts() {
+  const res = await fetch("https://api.predexon.com/v1/link/wallets", {
+    headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-| Field | Description |
-|-------|-------------|
-| `linked` | Whether the linking operation succeeded (POST only) |
-| `wallets` | Array of linked wallet/account objects |
-| `wallets[].venue` | Venue identifier (e.g., `POLYMARKET`, `KALSHI`) |
-| `wallets[].address` | Wallet address (for Polymarket) |
-| `wallets[].account_id` | Account ID (for Kalshi) |
-| `wallets[].verified` | Verification status |
-| `asof` | Timestamp of this snapshot (GET only) |
+```python Python
+res = requests.get(
+    "https://api.predexon.com/v1/link/wallets",
+    headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+    timeout=30,
+)
+res.raise_for_status()
+print(res.json())
+```
 
-## Verification Methods
+</CodeGroup>
 
-### Polymarket
-Requires EVM signature proving ownership of the wallet address.
+## Errors
 
-1. Sign a message with your wallet
-2. Include the `signature` in the request
-3. Predexon verifies the signature matches the address
+All errors return standard HTTP status codes with JSON error responses:
 
-### Kalshi
-Requires API key hint for account verification.
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "signature is required when venue=POLYMARKET",
+    "param": "signature"
+  }
+}
+```
 
-1. Provide your Kalshi `account_id`
-2. Include `api_key_hint` (last few characters of your API key)
-3. Predexon verifies the account mapping
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Missing signature, malformed address, unsupported venue |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | Token lacks portfolio access | Requesting with non-portfolio key |
+| `404` | `not_found` | Account not found | Listing before any accounts are linked |
+| `409` | `conflict` | Account already linked to another identity | Duplicate linking attempt |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 20 req/min |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
 
-## Notes
+## Best practices
 
-- **Security**: Signatures and API key hints are used for verification only and are not stored.
-- **Multiple venues**: You can link accounts on both Polymarket and Kalshi.
-- **Required for portfolio**: Link at least one account to access portfolio endpoints.
+1. **Verify first:** For Polymarket, sign a deterministic message (e.g., `"Link to Predexon"`) before calling the API. Reuse cached signatures only briefly.
+2. **Store mapping:** Persist returned `wallets` to avoid redundant link attempts.
+3. **Handle conflicts:** If you receive `409 conflict`, prompt the user to unlink the account from the existing identity before retrying.
+4. **Rotate credentials:** For Kalshi, rotate API keys periodically. When rotating, provide the new `kalshi_key_id` and sign the updated challenge to refresh the linkage.
 
 ## Related
 
-- [Balances](/pages/portfolio/balances) - View balances after linking
-- [Positions](/pages/portfolio/positions) - View positions after linking
+- [Balances](/pages/portfolio/balances) — View balances across linked venues
+- [Positions](/pages/portfolio/positions) — Inspect open positions per venue
+- [Stream Portfolio](/pages/portfolio/stream) — Subscribe to live position and PnL updates

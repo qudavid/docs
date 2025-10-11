@@ -56,11 +56,11 @@
             "group": "Portfolio & Linking",
             "pages": [
               "pages/portfolio/overview",
+              "pages/portfolio/link-accounts",
               "pages/portfolio/balances",
               "pages/portfolio/positions",
               "pages/portfolio/pnl",
-              "pages/portfolio/activities",
-              "pages/portfolio/link-accounts"
+              "pages/portfolio/activities"
             ]
           }
         ]
@@ -105,15 +105,15 @@
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {

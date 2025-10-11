@@ -4,31 +4,77 @@ description: WS /v1/stream/portfolio pushes positions and PnL deltas with a mono
 ---
 
 # Stream Portfolio
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
+> **WS `/v1/stream/portfolio`** — Subscribe to live position and PnL deltas across linked venues.
+
+- **WebSocket URL:** `wss://stream.predexon.com/v1/stream/portfolio`
+- **Auth:** `Authorization: Bearer <token>` header on the WebSocket handshake
+- **Time:** All timestamps in messages are **UTC ISO-8601**
+- **Rate Limits:** Limit concurrent connections per key; excessive subscribe churn may close the socket with code `4003`.
+
+## Connect
+
+<CodeGroup>
+
+```bash cURL
+wscat -c "wss://stream.predexon.com/v1/stream/portfolio" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
-WS /v1/stream/portfolio
+
+```javascript JavaScript
+import WebSocket from "ws";
+
+const socket = new WebSocket("wss://stream.predexon.com/v1/stream/portfolio", {
+  headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` },
+});
+
+socket.on("open", () => {
+  socket.send(JSON.stringify({
+    action: "subscribe",
+    venues: ["POLYMARKET", "KALSHI"],
+  }));
+});
 ```
 
-Live positions and PnL deltas post-trade, mark update, or resolution.
+```python Python
+import json
+import os
+import websocket
 
-## Connection
-
+ws = websocket.WebSocket()
+ws.connect(
+    "wss://stream.predexon.com/v1/stream/portfolio",
+    header=[f"Authorization: Bearer {os.environ['PREDX_TOKEN']}"]
+)
+ws.send(json.dumps({
+    "action": "subscribe",
+    "venues": ["POLYMARKET", "KALSHI"],
+}))
+print(ws.recv())
 ```
-wss://stream.predexon.com/v1/stream/portfolio
-```
 
-## Subscribe Payload
+</CodeGroup>
+
+## Subscribe payload
 
 ```json
 {
   "action": "subscribe",
-  "venues": ["POLYMARKET", "KALSHI"]
+  "venues": ["POLYMARKET", "KALSHI"],
+  "sequence": 2410
 }
 ```
 
-## Message Format
+| Field | Type | Description |
+|-------|------|-------------|
+| `action` | string | `"subscribe"` or `"unsubscribe"`. |
+| `venues` | string[] | Venues to stream (`POLYMARKET`, `KALSHI`). Omit to stream all linked venues. |
+| `sequence` | integer (optional) | Resume from a specific sequence number (>= last snapshot). |
 
-### Delta Message
+## Message schema
 
 ```json
 {
@@ -36,54 +82,65 @@ wss://stream.predexon.com/v1/stream/portfolio
   "sequence": 2418,
   "positions_delta": [
     {
-      "market_uid": "mkt_evt_mlb_2025_06_24_NYY_BOS_yesno",
+      "market_uid": "mkt_evt_mlb_2025_06_24_NYY_BOS_winner_nyy",
+      "venue": "POLYMARKET",
       "outcome": "NO",
       "qty": "-25.0"
     }
   ],
   "pnl_tick": {
     "ts": "2025-10-06T19:21:02Z",
-    "unrealized_delta": "-1.85"
+    "unrealized_delta": "-1.85",
+    "realized_delta": "0.00",
+    "fees_delta": "-0.02"
   },
   "asof": "2025-10-06T19:21:02Z"
 }
 ```
 
-## Example Test
+## Field reference
 
-Quick test with `wscat`:
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Message type. Always `"portfolio"`. |
+| `sequence` | integer | Monotonic sequence number; use to order deltas and detect gaps. |
+| `positions_delta` | array | Position change events relative to the last message. |
+| `positions_delta[].market_uid` | string | Canonical market identifier for the changed position. |
+| `positions_delta[].venue` | string | Venue where the change occurred. |
+| `positions_delta[].outcome` | string | Outcome code. |
+| `positions_delta[].qty` | string | Quantity change (positive for increases, negative for reductions). |
+| `pnl_tick` | object \| null | Incremental PnL update since the previous message. |
+| `pnl_tick.ts` | string (ISO-8601) | Timestamp of PnL calculation. |
+| `pnl_tick.unrealized_delta` | string | Change in unrealized PnL. |
+| `pnl_tick.realized_delta` | string \| null | Change in realized PnL. |
+| `pnl_tick.fees_delta` | string \| null | Change in fees. |
+| `asof` | string (ISO-8601) | Timestamp when the update was generated. |
 
-```bash
-wscat -c wss://stream.predexon.com/v1/stream/portfolio
-# then paste:
-# {"action":"subscribe","venues":["POLYMARKET","KALSHI"]}
-```
+<Info>
+**Snapshot vs deltas**
 
-## Message Fields
+- Initial message after subscribing is a full snapshot (positions array represents totals). Subsequent messages deliver deltas; apply `qty` changes to your local state.
+- Track the `sequence` number. If you detect a gap, fetch [Positions](/pages/portfolio/positions) via REST and resubscribe with the latest sequence.
+</Info>
 
-| Field | Description |
-|-------|-------------|
-| `type` | Message type (always `"portfolio"`) |
-| `sequence` | Monotonic sequence number for ordering |
-| `positions_delta` | Array of position changes |
-| `positions_delta[].market_uid` | Market identifier |
-| `positions_delta[].outcome` | Outcome code |
-| `positions_delta[].qty` | Change in position quantity (negative for reductions) |
-| `pnl_tick` | PnL update |
-| `pnl_tick.ts` | Timestamp of PnL calculation |
-| `pnl_tick.unrealized_delta` | Change in unrealized PnL |
-| `asof` | Timestamp of this update |
+## Errors & disconnects
 
-## Notes
+| Close Code | Meaning | Recommended Action |
+|------------|---------|--------------------|
+| `4001` | `invalid_token` | Refresh API token and reconnect. |
+| `4002` | `invalid_request` | Malformed subscribe payload; fix JSON. |
+| `4003` | `rate_limit_exceeded` | Slow subscription churn; wait then reconnect. |
+| `1011` | Server error | Reconnect with exponential backoff. |
 
-- **First message**: Initial message is a snapshot of all positions; subsequent messages are deltas.
-- **Sequence numbers**: Monotonically increasing. Use to detect gaps.
-- **Gap recovery**: If you detect a sequence gap, refresh positions via REST and resubscribe.
-- **Triggers**: Deltas are sent on trades, mark price updates, or market resolutions.
-- **Delta semantics**: `qty` in `positions_delta` is the change amount, not the new total.
+## Best practices
+
+1. **Seed with REST:** Call [Positions](/pages/portfolio/positions) and [PnL](/pages/portfolio/pnl) before streaming to prime local state.
+2. **Track per venue:** Apply `positions_delta[].venue` to maintain venue-level exposure.
+3. **Persist sequence:** Store the latest `sequence` and include it in resubscribe payloads to avoid replaying the entire feed.
+4. **Handle empty deltas:** Messages may omit `pnl_tick` when there is no PnL change; treat missing fields as zero delta.
 
 ## Related
 
-- [Positions](/pages/portfolio/positions) - REST snapshot of positions
-- [PnL](/pages/portfolio/pnl) - Historical PnL data
-- [Live Data Overview](/pages/live-data/overview) - Streaming conventions
+- [Positions](/pages/portfolio/positions) — REST snapshot of holdings
+- [PnL](/pages/portfolio/pnl) — Aggregated profit/loss curves
+- [Balances](/pages/portfolio/balances) — Collateral snapshots

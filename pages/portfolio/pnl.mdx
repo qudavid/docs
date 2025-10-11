@@ -4,22 +4,32 @@ description: GET /v1/portfolio/pnl returns realized, unrealized, and fees over t
 ---
 
 # PnL
+<Callout type="warning" title="Experimental">
+This endpoint group is experimental and may change without notice. Access is limited; contact support if you need early integration.
+</Callout>
 
-```
+> **GET `/v1/portfolio/pnl`** — Retrieve realized, unrealized, and fee PnL over time with per-venue breakdowns.
+
+- **Base URL:** `https://api.predexon.com/v1`
+- **Auth:** `Authorization: Bearer <token>`
+- **Time:** All timestamps are **UTC ISO-8601**
+- **Rate Limits:** 20 requests/minute per API key. `429` responses include `Retry-After` (seconds).
+
+## Endpoint
+
+```http
 GET /v1/portfolio/pnl
 ```
 
-Time-series PnL showing realized, unrealized, and fee drag.
-
-## Query Parameters
+## Query parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `granularity` | enum | Time granularity: `day`, `week`, `month`, `year`, `all` |
-| `start` | string | Start date (ISO-8601 UTC timestamp) - optional |
-| `end` | string | End date (ISO-8601 UTC timestamp) - optional |
+| `granularity` | enum | `day` \| `week` \| `month` \| `year` \| `all`. Default `day`. |
+| `start` | string | Inclusive start date/time (`ISO-8601`). Optional. |
+| `end` | string | Exclusive end date/time (`ISO-8601`). Optional. |
 
-## Response Schema
+## Response schema
 
 ```json
 {
@@ -44,39 +54,103 @@ Time-series PnL showing realized, unrealized, and fee drag.
 }
 ```
 
-## Example Request
+## Field reference
 
-Get daily PnL during Fed rate decision trading window:
+| Field | Type | Description |
+|-------|------|-------------|
+| `granularity` | string | Interval used for aggregation. |
+| `start` | string | Start of requested window (inclusive). |
+| `end` | string | End of requested window (exclusive). |
+| `curve` | array | Time-series points ordered oldest → newest. |
+| `curve[].ts` | string (ISO-8601) | Timestamp for the start of the bucket. |
+| `curve[].realized` | string | Realized PnL in the bucket. |
+| `curve[].unrealized` | string | Unrealized PnL change in the bucket. |
+| `curve[].fees` | string | Fees (negative numbers reduce PnL). |
+| `curve[].pnl_to_date` | string | Cumulative PnL up to this bucket. |
+| `breakdown` | object | Aggregate PnL breakdowns. |
+| `breakdown.by_venue` | object | Total PnL by venue. |
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.predexon.com/v1/portfolio/pnl?granularity=day&start=2025-06-01&end=2025-09-30"
+<Info>
+**Understanding the curve**
+
+- `pnl_to_date` equals the running sum of realized + unrealized + fees.
+- When `granularity=all`, the `curve` contains a single cumulative point.
+- Unrealized PnL reflects mark-to-market changes on open positions during the bucket.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -s "https://api.predexon.com/v1/portfolio/pnl?granularity=day&start=2025-06-01&end=2025-09-30" \
+  -H "Authorization: Bearer $PREDX_TOKEN"
 ```
 
-## Response Fields
+```javascript JavaScript
+const base = "https://api.predexon.com/v1";
 
-| Field | Description |
-|-------|-------------|
-| `granularity` | Time granularity of the PnL curve |
-| `start` | Start of the reporting period |
-| `end` | End of the reporting period |
-| `curve` | Array of PnL data points |
-| `curve[].ts` | Timestamp for this data point |
-| `curve[].realized` | Realized PnL (from closed positions) |
-| `curve[].unrealized` | Unrealized PnL (from open positions) |
-| `curve[].fees` | Total fees paid (negative value) |
-| `curve[].pnl_to_date` | Cumulative PnL up to this point |
-| `breakdown` | PnL breakdown by various dimensions |
-| `breakdown.by_venue` | Total PnL per venue |
+async function getPnl(params = {}) {
+  const url = new URL(`${base}/portfolio/pnl`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
 
-## Notes
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.PREDX_TOKEN}` } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+```
 
-- **Realized PnL**: Profit/loss from positions that have been closed.
-- **Unrealized PnL**: Mark-to-market P&L on open positions.
-- **Fees**: Trading fees, gas costs, and other charges (shown as negative).
-- **Cumulative**: `pnl_to_date` is the running total of `realized + unrealized + fees`.
+```python Python
+import os
+import requests
+
+def get_pnl(**params) -> dict:
+  res = requests.get(
+      "https://api.predexon.com/v1/portfolio/pnl",
+      headers={"Authorization": f"Bearer {os.environ['PREDX_TOKEN']}"},
+      params=params,
+      timeout=30,
+  )
+  res.raise_for_status()
+  return res.json()
+
+print(get_pnl(granularity="month"))
+```
+
+</CodeGroup>
+
+## Errors
+
+All errors return standard HTTP status codes with JSON error responses:
+
+```json
+{
+  "error": {
+    "type": "invalid_parameter",
+    "message": "granularity must be one of: day, week, month, year, all",
+    "param": "granularity"
+  }
+}
+```
+
+| HTTP Status | Error Type | Description | Common Causes |
+|-------------|------------|-------------|---------------|
+| `400` | `invalid_parameter` | Request validation failed | Unsupported granularity, `start > end` |
+| `401` | `invalid_token` | Authentication failed | Missing or invalid `Authorization` header |
+| `403` | `insufficient_permissions` | User has not linked required accounts | Link accounts before requesting PnL |
+| `429` | `rate_limit_exceeded` | Too many requests | Exceeded 20 req/min |
+| `500` | `internal_error` | Server error | Retry with backoff |
+| `503` | `service_unavailable` | Temporary service issue | Retry with exponential backoff |
+
+## Best practices
+
+1. **Align with positions:** Pair PnL curves with [Positions](/pages/portfolio/positions) to explain unrealized swings.
+2. **Compare venues:** Use `breakdown.by_venue` to attribute performance and fees per venue. Normalize fees to evaluate venue drag.
+3. **Cache curve data:** For dashboards, cache responses per granularity window to avoid heavy recomputation.
+4. **Use incremental windows:** Request daily or weekly windows for rolling analytics rather than large all-time pulls.
 
 ## Related
 
-- [Positions](/pages/portfolio/positions) - See positions contributing to unrealized PnL
-- [Activities](/pages/portfolio/activities) - Detailed transaction history
+- [Positions](/pages/portfolio/positions) — Live holdings driving unrealized PnL
+- [Activities](/pages/portfolio/activities) — Ledger of trades, deposits, and resolutions
+- [Balances](/pages/portfolio/balances) — Cash and collateral snapshots
